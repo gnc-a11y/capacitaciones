@@ -48,7 +48,6 @@
       align-items: center;
     }
 
-    /* CARD CONTENEDORA */
     .card {
       background-color: #172136;
       border-radius: 12px;
@@ -110,7 +109,7 @@
 
     .btn-secondary {
       background-color: #334155;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .btn-secondary:hover {
@@ -134,7 +133,6 @@
       min-height: 20px;
     }
 
-    /* GRID CAPACITACIONES */
     .cap-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -178,10 +176,9 @@
     .badge-blocked { background-color: #991b1b; color: #fca5a5; }
     .badge-pending { background-color: #854d0e; color: #fde047; }
 
-    /* VISOR DE CONTENIDO (VIDEO / PDF) */
     .viewer-container {
       position: relative;
-      padding-bottom: 56.25%; /* Relación de aspecto 16:9 */
+      padding-bottom: 56.25%;
       height: 0;
       overflow: hidden;
       max-width: 100%;
@@ -200,7 +197,6 @@
       border: 0;
     }
 
-    /* EXAMEN */
     .pregunta-box {
       background-color: #0b111e;
       border: 1px solid #334155;
@@ -231,7 +227,7 @@
   </header>
 
   <main>
-    <!-- 1. INICIO DE SESIÓN -->
+    <!-- LOGIN -->
     <div id="loginSection" class="card">
       <h2>Iniciar Sesión</h2>
       <div class="form-group">
@@ -246,28 +242,26 @@
       <div class="error-msg" id="loginError"></div>
     </div>
 
-    <!-- 2. CATÁLOGO DE CAPACITACIONES -->
+    <!-- LISTA DE CAPACITACIONES -->
     <div id="capacitacionesSection" class="card card-wide hidden">
       <h2>Capacitaciones Disponibles</h2>
       <div class="cap-grid" id="capContainer"></div>
     </div>
 
-    <!-- 3. VISOR DE MATERIAL DE ESTUDIO (VIDEO DE YOUTUBE O PDF) -->
+    <!-- VISOR (YOUTUBE / DRIVE) -->
     <div id="materialSection" class="card card-wide hidden">
       <h2 id="materialTitulo">Material de Capacitación</h2>
-      <div class="viewer-container" id="viewerBox">
-        <!-- iframe inyectado dinámicamente -->
-      </div>
+      <div class="viewer-container" id="viewerBox"></div>
       <div style="display: flex; gap: 10px;">
         <button class="btn btn-secondary" onclick="volverACapacitaciones()">Volver a la Lista</button>
-        <button class="btn" id="btnRendirExamenMaterial" onclick="irAExamenDesdeMaterial()">Rendir Examen</button>
+        <button class="btn" onclick="irAExamenDesdeMaterial()">Rendir Examen</button>
       </div>
     </div>
 
-    <!-- 4. EVALUACIÓN Y EXAMEN -->
+    <!-- EXAMEN -->
     <div id="examenSection" class="card card-wide hidden">
       <h2 id="examenTitulo">Examen</h2>
-      <div id="loadingExamen" class="error-msg" style="color:#3b82f6;">Generando evaluación técnica avanzada...</div>
+      <div id="loadingExamen" class="error-msg" style="color:#3b82f6;">Generando evaluación de nivel avanzado...</div>
       <div id="preguntasContainer"></div>
       <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button class="btn btn-secondary" onclick="volverACapacitaciones()">Cancelar</button>
@@ -284,9 +278,6 @@
     let capacitacionSeleccionada = null;
     let preguntasExamenActual = [];
 
-    /**
-     * Petición JSONP sin bloqueos CORS
-     */
     function pedirJSONP(params, callbackPrefix) {
       return new Promise((resolve, reject) => {
         const callbackFn = callbackPrefix + '_' + Math.round(100000 * Math.random());
@@ -317,9 +308,6 @@
       });
     }
 
-    /**
-     * Procesa Inicio de Sesión
-     */
     async function ejecutarLogin() {
       const correo = document.getElementById("correo").value.trim();
       const dni = document.getElementById("dni").value.trim();
@@ -363,9 +351,6 @@
       }
     }
 
-    /**
-     * Renderiza las capacitaciones
-     */
     function renderCapacitaciones(capacitaciones) {
       const container = document.getElementById("capContainer");
       container.innerHTML = "";
@@ -409,21 +394,15 @@
       });
     }
 
-    /**
-     * Convierte links de YouTube a formato Embed
-     */
     function obtenerUrlEmbed(url) {
       if (!url) return "";
       let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (youtubeMatch && youtubeMatch[1]) {
         return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
       }
-      return url; // Si no es YouTube, retorna la URL original de preview
+      return url;
     }
 
-    /**
-     * Muestra el visor de video o documento
-     */
     function verMaterial(fileId, tituloEncoded, urlDriveEncoded) {
       const titulo = decodeURIComponent(tituloEncoded);
       const urlDrive = decodeURIComponent(urlDriveEncoded);
@@ -447,12 +426,9 @@
       document.getElementById("materialSection").classList.add("hidden");
       document.getElementById("examenSection").classList.add("hidden");
       document.getElementById("capacitacionesSection").classList.remove("hidden");
-      document.getElementById("viewerBox").innerHTML = ""; // Detener reproductor
+      document.getElementById("viewerBox").innerHTML = "";
     }
 
-    /**
-     * Generación del examen
-     */
     async function iniciarExamen(fileId, tituloEncoded) {
       const titulo = decodeURIComponent(tituloEncoded);
       capacitacionSeleccionada = { fileId, titulo };
