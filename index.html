@@ -3,395 +3,364 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plataforma de Capacitaciones e Evaluaciones</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+  <title>Portal de Capacitaciones</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --border: #334155;
+    }
 
-  <!-- NAVBAR -->
-  <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-md">
-    <div class="max-w-6xl mx-auto flex justify-between items-center">
-      <h1 class="text-xl font-bold text-blue-400">Portal de Capacitaciones</h1>
-      <div id="user-info" class="hidden text-sm text-slate-300">
-        <span id="user-nombre" class="font-semibold text-white"></span>
-        <span class="mx-2">|</span>
-        <span>Legajo: <strong id="user-legajo" class="text-white"></strong></span>
-      </div>
-    </div>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header { background: #090d16; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.25rem; font-weight: 600; color: var(--text-main); }
+    .user-info { font-size: 0.9rem; color: var(--text-sub); }
+
+    .container { flex: 1; max-width: 1000px; width: 100%; margin: 2rem auto; padding: 0 1rem; }
+    .hidden { display: none !important; }
+
+    /* LOGIN CARD */
+    .login-card { background: var(--card-bg); max-width: 400px; margin: 4rem auto; padding: 2.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .login-card h2 { text-align: center; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-sub); }
+    .form-group input { width: 100%; padding: 0.75rem; background: #090d16; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 1rem; outline: none; }
+    .form-group input:focus { border-color: var(--accent); }
+    .btn { width: 100%; padding: 0.75rem; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error-msg { color: var(--danger); font-size: 0.875rem; text-align: center; margin-top: 1rem; }
+
+    /* DASHBOARD */
+    .cap-card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+    .cap-info h3 { margin-bottom: 0.5rem; color: #fff; }
+    .cap-info p { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .tag { display: inline-block; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 4px; font-weight: 600; }
+    .tag-success { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .tag-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+    .actions { display: flex; gap: 0.5rem; }
+
+    /* MODAL EXAMEN Y PDF */
+    .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: var(--card-bg); width: 90%; max-width: 800px; max-height: 90vh; border-radius: 8px; border: 1px solid var(--border); padding: 2rem; overflow-y: auto; position: relative; }
+    .close-btn { position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-sub); font-size: 1.5rem; cursor: pointer; }
+    
+    .question-block { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .question-block h4 { margin-bottom: 0.75rem; color: #fff; }
+    .option-label { display: block; margin-bottom: 0.5rem; padding: 0.5rem; background: #090d16; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
+    .option-label:hover { border-color: var(--accent); }
+    .option-label input { margin-right: 0.5rem; }
+
+    iframe { width: 100%; height: 500px; border: none; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Portal de Capacitaciones</h1>
+    <div id="userHeader" class="user-info hidden"></div>
   </header>
 
-  <!-- CONTENEDOR PRINCIPAL -->
-  <main class="flex-grow max-w-6xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
-
-    <!-- 1. VISTA DE LOGIN -->
-    <section id="view-login" class="max-w-md w-full mx-auto bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700">
-      <h2 class="text-2xl font-bold mb-6 text-center text-white">Iniciar Sesión</h2>
-      
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium mb-1 text-slate-300">Correo Electrónico:</label>
-          <input type="email" id="input-correo" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="usuario@ejemplo.com">
+  <div class="container">
+    <!-- VISTA LOGIN -->
+    <div id="loginSection" class="login-card">
+      <h2>Iniciar Sesión</h2>
+      <form id="loginForm" onsubmit="event.preventDefault(); hacerLogin();">
+        <div class="form-group">
+          <label>Correo Electrónico:</label>
+          <input type="email" id="correo" required placeholder="tu@correo.com">
         </div>
-
-        <div>
-          <label class="block text-sm font-medium mb-1 text-slate-300">DNI:</label>
-          <input type="text" id="input-dni" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="12345678">
+        <div class="form-group">
+          <label>DNI:</label>
+          <input type="text" id="dni" required placeholder="Ingresa tu DNI">
         </div>
+        <button type="submit" id="btnLogin" class="btn">Ingresar</button>
+        <div id="loginError" class="error-msg hidden"></div>
+      </form>
+    </div>
 
-        <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg">
-          Ingresar
-        </button>
+    <!-- VISTA DASHBOARD -->
+    <div id="dashboardSection" class="hidden">
+      <h2 style="margin-bottom: 1.5rem;">Mis Capacitaciones</h2>
+      <div id="listaCapacitaciones"></div>
+    </div>
+  </div>
 
-        <p id="login-error" class="text-red-400 text-sm text-center font-medium mt-2 min-h-[20px]"></p>
+  <!-- MODAL PDF -->
+  <div id="modalPdf" class="modal hidden">
+    <div class="modal-content">
+      <button class="close-btn" onclick="cerrarModal('modalPdf')">&times;</button>
+      <h3 id="tituloPdf" style="margin-bottom: 1rem;">Material de Capacitación</h3>
+      <iframe id="framePdf" src=""></iframe>
+    </div>
+  </div>
+
+  <!-- MODAL EXAMEN -->
+  <div id="modalExamen" class="modal hidden">
+    <div class="modal-content">
+      <button class="close-btn" onclick="cerrarModal('modalExamen')">&times;</button>
+      <h3 id="tituloExamen" style="margin-bottom: 0.5rem;">Evaluación</h3>
+      <p style="color: var(--text-sub); font-size: 0.875rem; margin-bottom: 1.5rem;">Responde todas las preguntas antes de enviar.</p>
+
+      <div id="loaderExamen" style="text-align: center; padding: 2rem;">
+        <p>Generando examen dinámico con IA...</p>
       </div>
-    </section>
 
-    <!-- 2. VISTA DE LISTA DE CAPACITACIONES -->
-    <section id="view-lista" class="hidden space-y-6">
-      <h2 class="text-2xl font-bold text-white border-b border-slate-700 pb-3">Capacitaciones Disponibles</h2>
-      <div id="grid-capacitaciones" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-    </section>
+      <form id="formExamen" class="hidden" onsubmit="event.preventDefault(); evaluarExamen();">
+        <div id="preguntasContainer"></div>
+        <button type="submit" id="btnEnviarExamen" class="btn">Enviar Examen</button>
+      </form>
+    </div>
+  </div>
 
-    <!-- 3. VISTA DE MATERIAL (PDF + BOTÓN EXAMEN) -->
-    <section id="view-material" class="hidden space-y-4 flex-grow flex flex-col">
-      <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-        <button onclick="mostrarListaCapacitaciones()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition">
-          ← Volver a Capacitaciones
-        </button>
-        <h3 id="material-titulo" class="text-lg font-bold text-blue-400"></h3>
-        <button id="btn-iniciar-examen" onclick="generarExamen()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-semibold text-sm shadow-md transition">
-          Rendir Examen
-        </button>
-      </div>
-
-      <div class="flex-grow w-full h-[650px] bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
-        <iframe id="iframe-material" class="w-full h-full border-none" src=""></iframe>
-      </div>
-    </section>
-
-    <!-- 4. VISTA DEL EXAMEN DINÁMICO -->
-    <section id="view-examen" class="hidden max-w-3xl w-full mx-auto space-y-6">
-      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-          <h3 id="examen-titulo-cap" class="text-xl font-bold text-blue-400"></h3>
-          <span class="text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full">Aprobación: 60%</span>
-        </div>
-        
-        <!-- Estado de carga de preguntas -->
-        <div id="examen-loading" class="text-center py-12 space-y-3">
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-          <p class="text-slate-300 font-medium">Generando examen dinámico con IA...</p>
-        </div>
-
-        <!-- Preguntas del Examen -->
-        <form id="form-examen" class="hidden space-y-6">
-          <div id="contenedor-preguntas" class="space-y-6"></div>
-
-          <p id="examen-error" class="text-red-400 text-sm font-medium min-h-[20px]"></p>
-
-          <button type="button" onclick="evaluarYEnviarExamen()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg transition">
-            Enviar Respuestas
-          </button>
-        </form>
-      </div>
-    </section>
-
-    <!-- 5. VISTA DE RESULTADO -->
-    <section id="view-resultado" class="hidden max-w-md w-full mx-auto bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl text-center space-y-6">
-      <div id="icono-resultado" class="text-6xl"></div>
-      <div>
-        <h3 id="resultado-estado" class="text-2xl font-bold mb-2"></h3>
-        <p class="text-slate-400 text-sm">Tu puntaje obtenido es:</p>
-        <p id="resultado-nota" class="text-5xl font-black my-3 text-white"></p>
-      </div>
-      <p id="resultado-mensaje" class="text-slate-300 text-sm"></p>
-      <button onclick="mostrarListaCapacitaciones()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition">
-        Volver al Menú Principal
-      </button>
-    </section>
-
-  </main>
-
-  <!-- LÓGICA JAVASCRIPT -->
   <script>
-    // URL exacta y verificada de tu Google Apps Script
+    // ==========================================
+    // CONFIGURACIÓN GLOBAL
+    // ==========================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
-
+    
     let usuarioActual = null;
-    let capacitacionSeleccionada = null;
-    let preguntasExamen = [];
+    let preguntasActuales = [];
+    let capacitacionActual = null;
 
-    // Comunicación JSONP
-    function solicitarAppsScript(params) {
+    // ==========================================
+    // CLIENTE JSONP (CONEXIÓN SEGURA SIN CORS)
+    // ==========================================
+    function requestJSONP(url, params, callbackName) {
       return new Promise((resolve, reject) => {
-        const callbackName = "jsonp_cb_" + Math.random().toString(36).substring(2, 15);
-        params.callback = callbackName;
+        const name = callbackName || 'jsonp_cb_' + Math.round(100000 * Math.random());
+        params.callback = name;
 
         const queryString = Object.keys(params)
-          .map(key => {
-            const val = (params[key] !== null && params[key] !== undefined) ? params[key].toString() : "";
-            return encodeURIComponent(key) + "=" + encodeURIComponent(val);
-          })
-          .join("&");
+          .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
+          .join('&');
 
-        const script = document.createElement("script");
-        script.src = `${SCRIPT_URL}?${queryString}`;
+        const script = document.createElement('script');
+        script.src = url + (url.includes('?') ? '&' : '?') + queryString;
 
-        window[callbackName] = function(data) {
-          delete window[callbackName];
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+        window[name] = function(data) {
+          delete window[name];
+          document.body.removeChild(script);
           resolve(data);
         };
 
         script.onerror = function() {
-          delete window[callbackName];
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-          reject(new Error("Error de conexión con Google Apps Script"));
+          delete window[name];
+          document.body.removeChild(script);
+          reject(new Error("Error de red o conexión al servidor."));
         };
 
         document.body.appendChild(script);
       });
     }
 
-    // 1. Iniciar Sesión
-    async function login() {
-      const correo = document.getElementById("input-correo").value.trim();
-      const dni = document.getElementById("input-dni").value.trim();
-      const errorEl = document.getElementById("login-error");
-      errorEl.innerText = "";
+    // ==========================================
+    // INICIO DE SESIÓN
+    // ==========================================
+    async function hacerLogin() {
+      const correo = document.getElementById('correo').value.trim();
+      const dni = document.getElementById('dni').value.trim();
+      const btn = document.getElementById('btnLogin');
+      const errDiv = document.getElementById('loginError');
 
-      if (!correo || !dni) {
-        errorEl.innerText = "Por favor, completa todos los campos.";
-        return;
-      }
+      btn.disabled = true;
+      btn.innerText = "Ingresando...";
+      errDiv.classList.add('hidden');
 
       try {
-        const data = await solicitarAppsScript({ action: "login", correo: correo, dni: dni });
+        const res = await requestJSONP(SCRIPT_URL, { action: 'login', correo: correo, dni: dni });
 
-        if (data.success) {
-          usuarioActual = data;
-          document.getElementById("user-nombre").innerText = data.nombre;
-          document.getElementById("user-legajo").innerText = data.legajo;
-          document.getElementById("user-info").classList.remove("hidden");
-
-          renderCapacitaciones(data.capacitaciones);
-          ocultarTodasLasVistas();
-          document.getElementById("view-lista").classList.remove("hidden");
+        if (res.success) {
+          usuarioActual = res;
+          document.getElementById('userHeader').innerText = `Usuario: ${res.nombre} (Legajo: ${res.legajo})`;
+          document.getElementById('userHeader').classList.remove('hidden');
+          document.getElementById('loginSection').classList.add('hidden');
+          document.getElementById('dashboardSection').classList.remove('hidden');
+          renderCapacitaciones(res.capacitaciones);
         } else {
-          errorEl.innerText = data.message;
+          errDiv.innerText = res.message;
+          errDiv.classList.remove('hidden');
         }
       } catch (err) {
-        errorEl.innerText = "Error de conexión. Inténtalo de nuevo.";
+        errDiv.innerText = "Error de conexión. Inténtalo de nuevo.";
+        errDiv.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Ingresar";
       }
     }
 
-    // 2. Renderizar Tarjetas de Capacitación
-    function renderCapacitaciones(capacitaciones) {
-      const grid = document.getElementById("grid-capacitaciones");
-      grid.innerHTML = "";
+    // ==========================================
+    // RENDERIZAR DASHBOARD
+    // ==========================================
+    function renderCapacitaciones(lista) {
+      const cont = document.getElementById('listaCapacitaciones');
+      cont.innerHTML = "";
 
-      if (!capacitaciones || capacitaciones.length === 0) {
-        grid.innerHTML = `<p class="text-slate-400 col-span-3 text-center py-8">No hay capacitaciones activas disponibles en este momento.</p>`;
+      if (!lista || lista.length === 0) {
+        cont.innerHTML = "<p>No hay capacitaciones activas.</p>";
         return;
       }
 
-      capacitaciones.forEach((cap, idx) => {
-        const card = document.createElement("div");
-        card.className = "bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col justify-between shadow-lg";
+      lista.forEach(cap => {
+        const div = document.createElement('div');
+        div.className = 'cap-card';
 
-        let badgeEstado = "";
+        let tagEstado = '';
         if (cap.aprobado) {
-          badgeEstado = `<span class="bg-emerald-900/60 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-emerald-700">Aprobado</span>`;
+          tagEstado = `<span class="tag tag-success">Aprobado</span>`;
         } else if (cap.bloqueado) {
-          badgeEstado = `<span class="bg-rose-900/60 text-rose-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-rose-700">Límite Diario (3/3)</span>`;
+          tagEstado = `<span class="tag tag-danger">Bloqueado hoy (3 intentos)</span>`;
         } else {
-          badgeEstado = `<span class="bg-amber-900/60 text-amber-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-amber-700">Intentos Hoy: ${cap.intentosHoy}/3</span>`;
+          tagEstado = `<span class="tag" style="background: rgba(255,255,255,0.1);">Intentos hoy: ${cap.intentosHoy}/3</span>`;
         }
 
-        card.innerHTML = `
-          <div>
-            <div class="flex justify-between items-start mb-3">
-              <h3 class="font-bold text-lg text-white">${cap.titulo}</h3>
-              ${badgeEstado}
-            </div>
-            <p class="text-slate-400 text-sm mb-4">${cap.descripcion}</p>
-            <p class="text-slate-500 text-xs mb-4">⏱️ Duración aprox: ${cap.duracion}</p>
+        div.innerHTML = `
+          <div class="cap-info">
+            <h3>${cap.titulo}</h3>
+            <p>${cap.descripcion} • Duración: ${cap.duracion}</p>
+            ${tagEstado}
           </div>
-          <button onclick="verMaterial(${idx})" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg text-sm transition">
-            Ingresar al Material
-          </button>
+          <div class="actions">
+            <button class="btn" style="background:#475569;" onclick="verPdf('${cap.titulo}', '${cap.urlDrive}')">Ver Material</button>
+            ${!cap.aprobado && !cap.bloqueado ? `<button class="btn" onclick="iniciarExamen('${cap.titulo}', '${cap.fileId}')">Rendir Examen</button>` : ''}
+          </div>
         `;
-
-        grid.appendChild(card);
+        cont.appendChild(div);
       });
     }
 
-    // 3. Ver Material en PDF
-    function verMaterial(index) {
-      capacitacionSeleccionada = usuarioActual.capacitaciones[index];
-      document.getElementById("material-titulo").innerText = capacitacionSeleccionada.titulo;
-      document.getElementById("iframe-material").src = capacitacionSeleccionada.urlDrive;
-
-      const btnExamen = document.getElementById("btn-iniciar-examen");
-      if (capacitacionSeleccionada.aprobado || capacitacionSeleccionada.bloqueado) {
-        btnExamen.classList.add("hidden");
-      } else {
-        btnExamen.classList.remove("hidden");
-      }
-
-      ocultarTodasLasVistas();
-      document.getElementById("view-material").classList.remove("hidden");
+    // ==========================================
+    // VER MATERIAL (PDF)
+    // ==========================================
+    function verPdf(titulo, url) {
+      document.getElementById('tituloPdf').innerText = titulo;
+      document.getElementById('framePdf').src = url;
+      document.getElementById('modalPdf').classList.remove('hidden');
     }
 
-    // 4. Generar Examen
-    async function generarExamen() {
-      ocultarTodasLasVistas();
-      document.getElementById("view-examen").classList.remove("hidden");
-      document.getElementById("examen-loading").classList.remove("hidden");
-      document.getElementById("form-examen").classList.add("hidden");
-      document.getElementById("examen-titulo-cap").innerText = capacitacionSeleccionada.titulo;
+    // ==========================================
+    // INICIAR Y GENERAR EXAMEN
+    // ==========================================
+    async function iniciarExamen(titulo, fileId) {
+      capacitacionActual = titulo;
+      document.getElementById('tituloExamen').innerText = "Evaluación: " + titulo;
+      document.getElementById('modalExamen').classList.remove('hidden');
+      document.getElementById('loaderExamen').classList.remove('hidden');
+      document.getElementById('formExamen').classList.add('hidden');
 
       try {
-        const data = await solicitarAppsScript({
-          action: "generarExamen",
-          fileId: capacitacionSeleccionada.fileId,
+        const res = await requestJSONP(SCRIPT_URL, {
+          action: 'generarExamen',
+          fileId: fileId,
           legajo: usuarioActual.legajo,
-          titulo: capacitacionSeleccionada.titulo
+          titulo: titulo
         });
 
-        if (data.success) {
-          preguntasExamen = data.preguntas;
-          renderizarPreguntas(data.preguntas);
-          document.getElementById("examen-loading").classList.add("hidden");
-          document.getElementById("form-examen").classList.remove("hidden");
+        if (res.success && res.preguntas) {
+          preguntasActuales = res.preguntas;
+          renderPreguntas(res.preguntas);
+          document.getElementById('loaderExamen').classList.add('hidden');
+          document.getElementById('formExamen').classList.remove('hidden');
         } else {
-          alert("No se pudo cargar el examen: " + data.message);
-          mostrarListaCapacitaciones();
+          alert("No se pudo cargar el examen: " + (res.message || "Error desconocido"));
+          cerrarModal('modalExamen');
         }
       } catch (err) {
-        alert("Error de conexión al generar el examen.");
-        mostrarListaCapacitaciones();
+        alert("Error de comunicación al generar el examen.");
+        cerrarModal('modalExamen');
       }
     }
 
-    // 5. Renderizar Formulario de Preguntas
-    function renderizarPreguntas(preguntas) {
-      const contenedor = document.getElementById("contenedor-preguntas");
-      contenedor.innerHTML = "";
+    function renderPreguntas(preguntas) {
+      const container = document.getElementById('preguntasContainer');
+      container.innerHTML = "";
 
-      preguntas.forEach((q, idx) => {
-        const qDiv = document.createElement("div");
-        qDiv.className = "bg-slate-900/50 p-5 rounded-lg border border-slate-700/60 space-y-3";
-
+      preguntas.forEach((p, index) => {
+        const div = document.createElement('div');
+        div.className = 'question-block';
+        
         let opcionesHtml = "";
-        Object.keys(q.opciones).forEach(letra => {
+        for (const [key, val] of Object.entries(p.opciones)) {
           opcionesHtml += `
-            <label class="flex items-start space-x-3 p-2.5 rounded-lg hover:bg-slate-800/80 cursor-pointer text-sm text-slate-200 border border-slate-800">
-              <input type="checkbox" name="pregunta_${idx}" value="${letra}" class="mt-1 accent-blue-500 rounded h-4 w-4">
-              <span><strong>${letra})</strong> ${q.opciones[letra]}</span>
+            <label class="option-label">
+              <input type="checkbox" name="p_${index}" value="${key}">
+              <strong>${key})</strong> ${val}
             </label>
           `;
-        });
+        }
 
-        qDiv.innerHTML = `
-          <p class="font-semibold text-white">${idx + 1}. ${q.enunciado}</p>
-          <p class="text-xs text-blue-400 italic mb-2">${q.instruccion}</p>
-          <div class="space-y-1.5">${opcionesHtml}</div>
+        div.innerHTML = `
+          <h4>${index + 1}. ${p.enunciado}</h4>
+          <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 0.5rem;">${p.instruccion || 'Seleccione las opciones correctas.'}</p>
+          ${opcionesHtml}
         `;
-
-        contenedor.appendChild(qDiv);
+        container.appendChild(div);
       });
     }
 
-    // 6. Evaluar Respuestas
-    async function evaluarYEnviarExamen() {
-      const errorEl = document.getElementById("examen-error");
-      errorEl.innerText = "";
+    // ==========================================
+    // EVALUAR Y GUARDAR RESULTADO
+    // ==========================================
+    async function evaluarExamen() {
+      let correctasContador = 0;
 
-      let casillasTotales = 0;
-      let casillasCorrectasSeleccionadas = 0;
+      preguntasActuales.forEach((p, index) => {
+        const checkboxes = document.querySelectorAll(`input[name="p_${index}"]:checked`);
+        const seleccionadas = Array.from(checkboxes).map(cb => cb.value);
 
-      for (let i = 0; i < preguntasExamen.length; i++) {
-        const q = preguntasExamen[i];
-        const marcadas = Array.from(document.querySelectorAll(`input[name="pregunta_${i}"]:checked`)).map(cb => cb.value);
+        const correctasEsperadas = p.correctas || [];
+        
+        // Comprobar si las opciones seleccionadas coinciden exactamente con las correctas
+        const esCorrecta = seleccionadas.length === correctasEsperadas.length &&
+          seleccionadas.every(val => correctasEsperadas.includes(val));
 
-        if (marcadas.length === 0) {
-          errorEl.innerText = `Por favor, responde la pregunta ${i + 1} antes de enviar.`;
-          return;
+        if (esCorrecta) {
+          correctasContador++;
         }
+      });
 
-        const correctasSet = new Set(q.correctas);
-        casillasTotales += 5;
-
-        ["A", "B", "C", "D", "E"].forEach(opcion => {
-          const debiaEstarMarcada = correctasSet.has(opcion);
-          const estuvoMarcada = marcadas.includes(opcion);
-
-          if (debiaEstarMarcada === estuvoMarcada) {
-            casillasCorrectasSeleccionadas++;
-          }
-        });
-      }
-
-      const notaFinal = Math.round((casillasCorrectasSeleccionadas / casillasTotales) * 100);
+      const nota = Math.round((correctasContador / preguntasActuales.length) * 100);
+      const btn = document.getElementById('btnEnviarExamen');
+      btn.disabled = true;
+      btn.innerText = "Guardando resultado...";
 
       try {
-        const data = await solicitarAppsScript({
-          action: "guardarResultado",
+        const res = await requestJSONP(SCRIPT_URL, {
+          action: 'guardarResultado',
           legajo: usuarioActual.legajo,
           nombre: usuarioActual.nombre,
-          capacitacion: capacitacionSeleccionada.titulo,
-          nota: notaFinal
+          capacitacion: capacitacionActual,
+          nota: nota
         });
 
-        if (data.success) {
-          mostrarVistaResultado(data.nota, data.estado, data.intentosHoy);
+        if (res.success) {
+          alert(`Examen finalizado.\nNota obtenida: ${nota}%\nEstado: ${res.estado}`);
+          cerrarModal('modalExamen');
+          // Recargar dashboard
+          hacerLogin();
         } else {
-          errorEl.innerText = "Error al guardar el examen: " + data.message;
+          alert("Error al guardar el resultado: " + res.message);
         }
       } catch (err) {
-        errorEl.innerText = "Error al conectar con el servidor para guardar los resultados.";
+        alert("Error al enviar las respuestas.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Enviar Examen";
       }
     }
 
-    // 7. Mostrar Pantalla de Resultado
-    function mostrarVistaResultado(nota, estado, intentosHoy) {
-      ocultarTodasLasVistas();
-      const viewRes = document.getElementById("view-resultado");
-      viewRes.classList.remove("hidden");
-
-      const esAprobado = estado === "Aprobado";
-      document.getElementById("icono-resultado").innerText = esAprobado ? "🎉" : "❌";
-      
-      const elEstado = document.getElementById("resultado-estado");
-      elEstado.innerText = esAprobado ? "¡Felicitaciones, Aprobaste!" : "Examen Desaprobado";
-      elEstado.className = `text-2xl font-bold mb-2 ${esAprobado ? 'text-emerald-400' : 'text-rose-400'}`;
-
-      document.getElementById("resultado-nota").innerText = `${nota}%`;
-
-      if (esAprobado) {
-        document.getElementById("resultado-mensaje").innerText = "Has completado con éxito la evaluación de este contenido.";
-      } else if (intentosHoy >= 3) {
-        document.getElementById("resultado-mensaje").innerText = "Alcanzaste el límite de 3 intentos permitidos para el día de hoy. Podrás reintentarlo mañana.";
-      } else {
-        document.getElementById("resultado-mensaje").innerText = `Has realizado ${intentosHoy} de 3 intentos diarios disponibles. Puedes repasar el material y volver a intentar.`;
-      }
-    }
-
-    function mostrarListaCapacitaciones() {
-      login();
-    }
-
-    function ocultarTodasLasVistas() {
-      document.getElementById("view-login").classList.add("hidden");
-      document.getElementById("view-lista").classList.add("hidden");
-      document.getElementById("view-material").classList.add("hidden");
-      document.getElementById("view-examen").classList.add("hidden");
-      document.getElementById("view-resultado").classList.add("hidden");
+    function cerrarModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      if (id === 'modalPdf') document.getElementById('framePdf').src = "";
     }
   </script>
 </body>
