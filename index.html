@@ -239,10 +239,10 @@
           ? `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">📄 Descargar Certificado</a>` 
           : "";
 
-        // Si la URL viene dentro del texto de la descripción, la extraemos limpiamente
         let urlMaterial = cap.urlDrive || "";
         let descripcionLimpia = cap.descripcion || "";
 
+        // Si la URL fue pegada por error dentro del campo de descripción, se separa automáticamente
         const matchUrl = descripcionLimpia.match(/https?:\/\/[^\s]+/);
         if (matchUrl) {
           if (!urlMaterial) urlMaterial = matchUrl[0];
@@ -288,7 +288,6 @@
         return;
       }
 
-      // Transformar URLs para visualización directa en visor iframe
       if (urlDrive.includes("drive.google.com")) {
         const match = urlDrive.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (match && match[1]) {
