@@ -4,189 +4,270 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Portal de Capacitaciones CEEZ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --border-color: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --success: #10b981;
+      --success-hover: #059669;
+      --success-light: #ecfdf5;
+      --warning: #f59e0b;
+      --warning-light: #fffbeb;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --radius: 12px;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     body {
-      background-color: #0b111e;
-      color: #ffffff;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      -webkit-font-smoothing: antialiased;
     }
 
+    /* HEADER */
     header {
-      background-color: #111a2e;
-      padding: 15px 30px;
+      background-color: #ffffff;
+      padding: 16px 32px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #1e293b;
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
     }
 
-    .logo {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #3b82f6;
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      background-color: var(--primary);
+      color: white;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+    }
+
+    .logo-text {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
     }
 
     .user-info {
-      font-size: 0.9rem;
-      color: #94a3b8;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background-color: var(--bg-main);
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
     }
 
+    /* MAIN CONTAINER */
     main {
       flex: 1;
-      padding: 20px;
+      padding: 40px 20px;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
     }
 
     .card {
-      background-color: #172136;
-      border-radius: 12px;
-      padding: 30px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      border: 1px solid #1e293b;
+      background-color: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 36px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-color);
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
+      transition: all 0.3s ease;
     }
 
     .card-wide {
-      max-width: 900px;
+      max-width: 960px;
     }
 
     h2 {
-      text-align: center;
-      margin-bottom: 20px;
       font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+      text-align: center;
+      letter-spacing: -0.025em;
     }
 
+    /* FORM ELEMENTS */
     .form-group {
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     label {
       display: block;
-      margin-bottom: 6px;
-      font-size: 0.85rem;
-      color: #94a3b8;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary);
     }
 
     input[type="email"], input[type="text"] {
       width: 100%;
-      padding: 12px;
-      border-radius: 6px;
-      border: 1px solid #334155;
-      background-color: #0b111e;
-      color: #fff;
-      font-size: 1rem;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: #ffffff;
+      color: var(--text-primary);
+      font-size: 0.95rem;
       outline: none;
+      transition: all 0.2s ease;
     }
 
     input:focus {
-      border-color: #3b82f6;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
+    /* BUTTONS */
     .btn {
       width: 100%;
-      padding: 12px;
-      background-color: #2563eb;
+      padding: 12px 20px;
+      background-color: var(--primary);
       color: white;
       border: none;
-      border-radius: 6px;
-      font-size: 0.95rem;
-      font-weight: bold;
+      border-radius: 8px;
+      font-size: 0.925rem;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 6px;
+      transition: all 0.2s ease;
       text-decoration: none;
-      display: inline-block;
-      text-align: center;
-    }
-
-    .btn-secondary {
-      background-color: #334155;
-    }
-
-    .btn-secondary:hover {
-      background-color: #475569;
-    }
-
-    .btn-success {
-      background-color: #059669;
-    }
-
-    .btn-success:hover {
-      background-color: #047857;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
     }
 
     .btn:hover {
-      background-color: #1d4ed8;
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+      background-color: #ffffff;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+    }
+
+    .btn-success {
+      background-color: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: var(--success-hover);
     }
 
     .btn:disabled {
-      background-color: #475569;
+      background-color: #cbd5e1;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     .error-msg {
-      color: #ef4444;
-      font-size: 0.85rem;
+      font-size: 0.875rem;
+      font-weight: 500;
       text-align: center;
-      margin-top: 15px;
+      margin-top: 16px;
       min-height: 20px;
     }
 
+    /* CAPACITACIONES GRID */
     .cap-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
-      margin-top: 20px;
+      gap: 24px;
+      margin-top: 10px;
     }
 
     .cap-card {
-      background-color: #0b111e;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 18px;
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 24px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .cap-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: #cbd5e1;
     }
 
     .cap-title {
-      font-weight: bold;
+      font-weight: 700;
       margin-bottom: 8px;
-      color: #f8fafc;
+      color: var(--text-primary);
       font-size: 1.1rem;
+      line-height: 1.4;
     }
 
     .cap-desc {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      margin-bottom: 12px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.5;
     }
 
     .badge {
       display: inline-block;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 6px 12px;
+      border-radius: 20px;
       font-size: 0.75rem;
-      font-weight: bold;
-      margin-bottom: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
     }
 
-    .badge-approved { background-color: #065f46; color: #34d399; }
-    .badge-blocked { background-color: #991b1b; color: #fca5a5; }
-    .badge-pending { background-color: #854d0e; color: #fde047; }
+    .badge-approved { background-color: var(--success-light); color: var(--success); }
+    .badge-blocked { background-color: var(--danger-light); color: var(--danger); }
+    .badge-pending { background-color: var(--warning-light); color: var(--warning); }
 
+    /* VISOR */
     .viewer-container {
       position: relative;
       padding-bottom: 56.25%;
@@ -194,9 +275,9 @@
       overflow: hidden;
       max-width: 100%;
       background: #000;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      border: 1px solid #334155;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
     }
 
     .viewer-container iframe {
@@ -208,21 +289,39 @@
       border: 0;
     }
 
+    /* PREGUNTAS EXAMEN */
     .pregunta-box {
-      background-color: #0b111e;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
     }
 
     .opcion-item {
-      margin: 8px 0;
+      margin: 10px 0;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       font-size: 0.95rem;
+      color: var(--text-primary);
       cursor: pointer;
+      background-color: #ffffff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      transition: all 0.15s ease;
+    }
+
+    .opcion-item:hover {
+      border-color: var(--primary);
+      background-color: var(--primary-light);
+    }
+
+    .opcion-item input {
+      accent-color: var(--primary);
+      width: 16px;
+      height: 16px;
     }
 
     .hidden {
@@ -233,8 +332,11 @@
 <body>
 
   <header>
-    <div class="logo">Capacitaciones CEEZ</div>
-    <div class="user-info" id="userInfoHeader"></div>
+    <div class="logo-container">
+      <div class="logo-badge">CEEZ</div>
+      <div class="logo-text">Portal de Capacitaciones</div>
+    </div>
+    <div class="user-info hidden" id="userInfoHeader"></div>
   </header>
 
   <main>
@@ -242,14 +344,14 @@
     <div id="loginSection" class="card">
       <h2>Iniciar Sesión</h2>
       <div class="form-group">
-        <label for="correo">Correo Electrónico:</label>
+        <label for="correo">Correo Electrónico</label>
         <input type="email" id="correo" value="12@gmail.com" placeholder="ejemplo@correo.com">
       </div>
       <div class="form-group">
-        <label for="dni">DNI:</label>
-        <input type="text" id="dni" value="12123456" placeholder="Ingrese su DNI">
+        <label for="dni">Número de DNI</label>
+        <input type="text" id="dni" value="12123456" placeholder="Ingrese su DNI sin puntos">
       </div>
-      <button class="btn" id="btnLogin" onclick="ejecutarLogin()">Ingresar</button>
+      <button class="btn" id="btnLogin" onclick="ejecutarLogin()">Ingresar a la Plataforma</button>
       <div class="error-msg" id="loginError"></div>
     </div>
 
@@ -263,28 +365,29 @@
     <div id="materialSection" class="card card-wide hidden">
       <h2 id="materialTitulo">Material de Capacitación</h2>
       <div class="viewer-container" id="viewerBox"></div>
-      <div style="display: flex; gap: 10px;">
-        <button class="btn btn-secondary" onclick="volverACapacitaciones()">Volver a la Lista</button>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-secondary" onclick="volverACapacitaciones()">Volver al Catálogo</button>
         <button class="btn" onclick="irAExamenDesdeMaterial()">Rendir Examen</button>
       </div>
     </div>
 
     <!-- EXAMEN -->
     <div id="examenSection" class="card card-wide hidden">
-      <h2 id="examenTitulo">Examen</h2>
-      <div id="loadingExamen" class="error-msg" style="color:#3b82f6;">Cargando preguntas de la evaluación...</div>
+      <h2 id="examenTitulo">Examen de Evaluación</h2>
+      <div id="loadingExamen" class="error-msg" style="color:var(--primary);">Cargando preguntas de la evaluación...</div>
       <div id="preguntasContainer"></div>
 
-      <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <div style="display: flex; gap: 12px; margin-top: 20px;">
         <button class="btn btn-secondary" onclick="volverACapacitaciones()">Cancelar</button>
-        <button class="btn hidden" id="btnEnviarExamen" onclick="evaluarRespostas()">Enviar Examen</button>
+        <button class="btn hidden" id="btnEnviarExamen" onclick="evaluarRespostas()">Enviar Evaluación</button>
       </div>
       <div class="error-msg" id="examenError"></div>
     </div>
   </main>
 
   <script>
-    const URL_WEB_APP = "[https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec](https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec)";
+    // URL Web App de Apps Script (Sin corchetes)
+    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
 
     let usuarioActual = { legajo: "", nombre: "", correo: "" };
     let capacitacionSeleccionada = null;
@@ -332,11 +435,12 @@
       const btn = document.getElementById("btnLogin");
 
       if (!correo || !dni) {
+        msgError.style.color = "var(--danger)";
         msgError.innerText = "Por favor ingresa correo y DNI.";
         return;
       }
 
-      msgError.style.color = "#3b82f6";
+      msgError.style.color = "var(--primary)";
       msgError.innerText = "Verificando credenciales...";
       btn.disabled = true;
 
@@ -352,17 +456,20 @@
           usuarioActual.nombre = res.nombre;
           usuarioActual.correo = res.correo;
           
-          document.getElementById("userInfoHeader").innerText = `${res.nombre} (Legajo: ${res.legajo})`;
+          const headerInfo = document.getElementById("userInfoHeader");
+          headerInfo.innerText = `${res.nombre} (Legajo: ${res.legajo})`;
+          headerInfo.classList.remove("hidden");
+
           document.getElementById("loginSection").classList.add("hidden");
           document.getElementById("capacitacionesSection").classList.remove("hidden");
           
           renderCapacitaciones(res.capacitaciones);
         } else {
-          msgError.style.color = "#ef4444";
+          msgError.style.color = "var(--danger)";
           msgError.innerText = res.message || "Credenciales incorrectas.";
         }
       } catch (err) {
-        msgError.style.color = "#ef4444";
+        msgError.style.color = "var(--danger)";
         msgError.innerText = "Error de conexión. Inténtalo de nuevo.";
       } finally {
         btn.disabled = false;
@@ -374,7 +481,7 @@
       container.innerHTML = "";
 
       if (!capacitaciones || capacitaciones.length === 0) {
-        container.innerHTML = "<p>No hay capacitaciones activas asignadas.</p>";
+        container.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-secondary);'>No hay capacitaciones activas asignadas.</p>";
         return;
       }
 
@@ -384,11 +491,11 @@
         let certBtnHtml = "";
 
         if (cap.aprobado) {
-          badgeHtml = `<span class="badge badge-approved">Aprobado</span>`;
+          badgeHtml = `<span class="badge badge-approved">✓ Aprobado</span>`;
           if (cap.urlCertificado) {
             certBtnHtml = `
               <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">
-                📄 Descargar Certificado (PDF)
+                📄 Descargar Certificado
               </a>
             `;
           }
@@ -407,11 +514,11 @@
             <div class="cap-desc">${cap.descripcion}</div>
             ${badgeHtml}
           </div>
-          <div style="margin-top:10px;">
+          <div style="margin-top:12px;">
             <button class="btn btn-secondary" onclick="verMaterial('${cap.fileId}', '${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(cap.urlDrive)}')">
               Ver Contenido
             </button>
-            <button class="btn" ${btnDisabled} style="margin-top:6px;" onclick="iniciarExamen('${cap.fileId}', '${encodeURIComponent(cap.titulo)}')">
+            <button class="btn" ${btnDisabled} style="margin-top:8px;" onclick="iniciarExamen('${cap.fileId}', '${encodeURIComponent(cap.titulo)}')">
               ${cap.aprobado ? "Rendir Nuevamente" : "Rendir Examen"}
             </button>
             ${certBtnHtml}
@@ -425,7 +532,7 @@
       if (!url) return "";
       let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (youtubeMatch && youtubeMatch[1]) {
-        return `[https://www.youtube.com/embed/$](https://www.youtube.com/embed/$){youtubeMatch[1]}?autoplay=1`;
+        return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
       }
       return url;
     }
@@ -489,10 +596,12 @@
           btnEnviar.classList.remove("hidden");
         } else {
           loading.classList.add("hidden");
+          errorMsg.style.color = "var(--danger)";
           errorMsg.innerText = res.message || "Error al obtener preguntas.";
         }
       } catch (err) {
         loading.classList.add("hidden");
+        errorMsg.style.color = "var(--danger)";
         errorMsg.innerText = "Error de conexión al cargar el examen.";
       }
     }
@@ -522,8 +631,8 @@
         }
 
         box.innerHTML = `
-          <p style="font-weight:bold; margin-bottom:4px;">${index + 1}. ${p.enunciado}</p>
-          <p style="font-size:0.8rem; color:#3b82f6; margin-bottom:12px;">${subtexto}</p>
+          <p style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">${index + 1}. ${p.enunciado}</p>
+          <p style="font-size:0.8rem; color:var(--primary); font-weight:600; margin-bottom:12px;">${subtexto}</p>
           ${opcionesHtml}
         `;
         container.appendChild(box);
@@ -556,8 +665,8 @@
       const notaFinal = Math.min(100, puntajeTotal);
       const errorMsg = document.getElementById("examenError");
       
-      errorMsg.style.color = "#3b82f6";
-      errorMsg.innerText = "Evaluando y generando certificado en PDF...";
+      errorMsg.style.color = "var(--primary)";
+      errorMsg.innerText = "Evaluando y generando certificado PDF...";
 
       try {
         const res = await pedirJSONP({
@@ -572,17 +681,17 @@
         if (res.success) {
           let mensaje = `Examen finalizado.\nPuntaje obtenido: ${notaFinal}/100\nEstado: ${res.estado}`;
           if (res.urlCertificado) {
-            mensaje += `\n\n¡Certificado PDF generado exitosamente! Puedes descargarlo directamente desde la plataforma.`;
+            mensaje += `\n\n¡Certificado PDF generado con éxito! Puedes descargarlo directamente desde tu panel.`;
           }
           alert(mensaje);
           location.reload();
         } else {
-          errorMsg.style.color = "#ef4444";
+          errorMsg.style.color = "var(--danger)";
           errorMsg.innerText = res.message || "Error al guardar el resultado.";
         }
       } catch (err) {
-        errorMsg.style.color = "#ef4444";
-        errorMsg.innerText = "Error de conexión al guardar resultado.";
+        errorMsg.style.color = "var(--danger)";
+        errorMsg.innerText = "Error de conexión al guardar el resultado.";
       }
     }
   </script>
