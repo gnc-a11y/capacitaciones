@@ -31,302 +31,54 @@
       --radius: 12px;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background-color: var(--bg-main); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; }
+    
+    header { background-color: #ffffff; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
+    .logo-container { display: flex; align-items: center; gap: 10px; }
+    .logo-badge { background-color: var(--primary); color: white; font-weight: 800; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; }
+    .logo-text { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+    .user-info { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background-color: var(--bg-main); padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border-color); }
 
-    body {
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      -webkit-font-smoothing: antialiased;
-    }
+    main { flex: 1; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; }
+    .card { background-color: var(--bg-card); border-radius: var(--radius); padding: 36px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); width: 100%; max-width: 440px; }
+    .card-wide { max-width: 960px; }
+    h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 24px; text-align: center; }
 
-    /* HEADER */
-    header {
-      background-color: #ffffff;
-      padding: 16px 32px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border-color);
-      box-shadow: var(--shadow-sm);
-    }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); }
+    input[type="email"], input[type="text"] { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-color); background-color: #ffffff; color: var(--text-primary); font-size: 0.95rem; outline: none; }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
 
-    .logo-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .btn { width: 100%; padding: 12px 20px; background-color: var(--primary); color: white; border: none; border-radius: 8px; font-size: 0.925rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow-sm); }
+    .btn:hover { background-color: var(--primary-hover); }
+    .btn-secondary { background-color: #ffffff; color: var(--text-secondary); border: 1px solid var(--border-color); }
+    .btn-secondary:hover { background-color: var(--bg-main); color: var(--text-primary); }
+    .btn-success { background-color: var(--success); color: white; }
+    .btn-success:hover { background-color: var(--success-hover); }
+    .btn:disabled { background-color: #cbd5e1; cursor: not-allowed; }
 
-    .logo-badge {
-      background-color: var(--primary);
-      color: white;
-      font-weight: 800;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      letter-spacing: 0.5px;
-    }
+    .error-msg { font-size: 0.875rem; font-weight: 500; text-align: center; margin-top: 16px; min-height: 20px; }
 
-    .logo-text {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+    .cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 10px; }
+    .cap-card { background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm); }
+    .cap-title { font-weight: 700; margin-bottom: 8px; color: var(--text-primary); font-size: 1.1rem; }
+    .cap-desc { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; }
 
-    .user-info {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-      background-color: var(--bg-main);
-      padding: 8px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--border-color);
-    }
-
-    /* MAIN CONTAINER */
-    main {
-      flex: 1;
-      padding: 40px 20px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
-
-    .card {
-      background-color: var(--bg-card);
-      border-radius: var(--radius);
-      padding: 36px;
-      box-shadow: var(--shadow-lg);
-      border: 1px solid var(--border-color);
-      width: 100%;
-      max-width: 440px;
-      transition: all 0.3s ease;
-    }
-
-    .card-wide {
-      max-width: 960px;
-    }
-
-    h2 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin-bottom: 24px;
-      text-align: center;
-      letter-spacing: -0.025em;
-    }
-
-    /* FORM ELEMENTS */
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-
-    input[type="email"], input[type="text"] {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      background-color: #ffffff;
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      outline: none;
-      transition: all 0.2s ease;
-    }
-
-    input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-    }
-
-    /* BUTTONS */
-    .btn {
-      width: 100%;
-      padding: 12px 20px;
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.925rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .btn:hover {
-      background-color: var(--primary-hover);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
-    }
-
-    .btn-secondary {
-      background-color: #ffffff;
-      color: var(--text-secondary);
-      border: 1px solid var(--border-color);
-    }
-
-    .btn-secondary:hover {
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-    }
-
-    .btn-success {
-      background-color: var(--success);
-      color: white;
-    }
-
-    .btn-success:hover {
-      background-color: var(--success-hover);
-    }
-
-    .btn:disabled {
-      background-color: #cbd5e1;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .error-msg {
-      font-size: 0.875rem;
-      font-weight: 500;
-      text-align: center;
-      margin-top: 16px;
-      min-height: 20px;
-    }
-
-    /* CAPACITACIONES GRID */
-    .cap-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 24px;
-      margin-top: 10px;
-    }
-
-    .cap-card {
-      background-color: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      transition: all 0.2s ease;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .cap-card:hover {
-      box-shadow: var(--shadow-md);
-      border-color: #cbd5e1;
-    }
-
-    .cap-title {
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: var(--text-primary);
-      font-size: 1.1rem;
-      line-height: 1.4;
-    }
-
-    .cap-desc {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      margin-bottom: 16px;
-      line-height: 1.5;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-
+    .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 16px; }
     .badge-approved { background-color: var(--success-light); color: var(--success); }
     .badge-blocked { background-color: var(--danger-light); color: var(--danger); }
     .badge-pending { background-color: var(--warning-light); color: var(--warning); }
 
-    /* VISOR */
-    .viewer-container {
-      position: relative;
-      padding-bottom: 56.25%;
-      height: 0;
-      overflow: hidden;
-      max-width: 100%;
-      background: #000;
-      border-radius: var(--radius);
-      margin-bottom: 24px;
-      box-shadow: var(--shadow-md);
-    }
+    .viewer-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; background: #000; border-radius: var(--radius); margin-bottom: 24px; }
+    .viewer-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 
-    .viewer-container iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-    }
+    .pregunta-box { background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+    .opcion-item { margin: 10px 0; display: flex; align-items: center; gap: 12px; font-size: 0.95rem; color: var(--text-primary); cursor: pointer; background-color: #ffffff; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); }
+    .opcion-item:hover { border-color: var(--primary); background-color: var(--primary-light); }
+    .opcion-item input { accent-color: var(--primary); width: 16px; height: 16px; }
 
-    /* PREGUNTAS EXAMEN */
-    .pregunta-box {
-      background-color: var(--bg-main);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 16px;
-    }
-
-    .opcion-item {
-      margin: 10px 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 0.95rem;
-      color: var(--text-primary);
-      cursor: pointer;
-      background-color: #ffffff;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      transition: all 0.15s ease;
-    }
-
-    .opcion-item:hover {
-      border-color: var(--primary);
-      background-color: var(--primary-light);
-    }
-
-    .opcion-item input {
-      accent-color: var(--primary);
-      width: 16px;
-      height: 16px;
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -340,7 +92,6 @@
   </header>
 
   <main>
-    <!-- LOGIN -->
     <div id="loginSection" class="card">
       <h2>Iniciar Sesión</h2>
       <div class="form-group">
@@ -355,13 +106,11 @@
       <div class="error-msg" id="loginError"></div>
     </div>
 
-    <!-- LISTA DE CAPACITACIONES -->
     <div id="capacitacionesSection" class="card card-wide hidden">
       <h2>Capacitaciones Disponibles</h2>
       <div class="cap-grid" id="capContainer"></div>
     </div>
 
-    <!-- VISOR -->
     <div id="materialSection" class="card card-wide hidden">
       <h2 id="materialTitulo">Material de Capacitación</h2>
       <div class="viewer-container" id="viewerBox"></div>
@@ -371,7 +120,6 @@
       </div>
     </div>
 
-    <!-- EXAMEN -->
     <div id="examenSection" class="card card-wide hidden">
       <h2 id="examenTitulo">Examen de Evaluación</h2>
       <div id="loadingExamen" class="error-msg" style="color:var(--primary);">Cargando preguntas de la evaluación...</div>
@@ -386,7 +134,6 @@
   </main>
 
   <script>
-    // URL Web App de Apps Script (Sin corchetes)
     const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
 
     let usuarioActual = { legajo: "", nombre: "", correo: "" };
@@ -400,7 +147,7 @@
 
         const timeout = setTimeout(() => {
           cleanup();
-          reject(new Error("Tiempo de espera agotado al conectar con el servidor."));
+          reject(new Error("Tiempo de espera agotado."));
         }, 15000);
 
         function cleanup() {
@@ -416,7 +163,7 @@
 
         script.onerror = function() {
           cleanup();
-          reject(new Error("Error de red o endpoint inaccesible."));
+          reject(new Error("Error de red."));
         };
 
         const queryParams = new URLSearchParams(params);
@@ -445,11 +192,7 @@
       btn.disabled = true;
 
       try {
-        const res = await pedirJSONP({
-          action: "login",
-          correo: correo,
-          dni: dni
-        });
+        const res = await pedirJSONP({ action: "login", correo: correo, dni: dni });
 
         if (res.success) {
           usuarioActual.legajo = res.legajo;
@@ -481,30 +224,20 @@
       container.innerHTML = "";
 
       if (!capacitaciones || capacitaciones.length === 0) {
-        container.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-secondary);'>No hay capacitaciones activas asignadas.</p>";
+        container.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-secondary);'>No hay capacitaciones activas.</p>";
         return;
       }
 
       capacitaciones.forEach(cap => {
-        let badgeHtml = "";
-        let btnDisabled = "";
-        let certBtnHtml = "";
+        let badgeHtml = cap.aprobado 
+          ? `<span class="badge badge-approved">✓ Aprobado</span>`
+          : cap.bloqueado 
+            ? `<span class="badge badge-blocked">Límite alcanzado hoy (3/3)</span>`
+            : `<span class="badge badge-pending">Intentos hoy: ${cap.intentosHoy}/3</span>`;
 
-        if (cap.aprobado) {
-          badgeHtml = `<span class="badge badge-approved">✓ Aprobado</span>`;
-          if (cap.urlCertificado) {
-            certBtnHtml = `
-              <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">
-                📄 Descargar Certificado
-              </a>
-            `;
-          }
-        } else if (cap.bloqueado) {
-          badgeHtml = `<span class="badge badge-blocked">Límite alcanzado hoy (3/3)</span>`;
-          btnDisabled = "disabled";
-        } else {
-          badgeHtml = `<span class="badge badge-pending">Intentos hoy: ${cap.intentosHoy}/3</span>`;
-        }
+        let certBtnHtml = (cap.aprobado && cap.urlCertificado) 
+          ? `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">📄 Descargar Certificado</a>` 
+          : "";
 
         const card = document.createElement("div");
         card.className = "cap-card";
@@ -515,10 +248,8 @@
             ${badgeHtml}
           </div>
           <div style="margin-top:12px;">
-            <button class="btn btn-secondary" onclick="verMaterial('${cap.fileId}', '${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(cap.urlDrive)}')">
-              Ver Contenido
-            </button>
-            <button class="btn" ${btnDisabled} style="margin-top:8px;" onclick="iniciarExamen('${cap.fileId}', '${encodeURIComponent(cap.titulo)}')">
+            <button class="btn btn-secondary" onclick="verMaterial('${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(cap.urlDrive)}')">Ver Contenido</button>
+            <button class="btn" ${cap.bloqueado ? "disabled" : ""} style="margin-top:8px;" onclick="iniciarExamen('${encodeURIComponent(cap.titulo)}')">
               ${cap.aprobado ? "Rendir Nuevamente" : "Rendir Examen"}
             </button>
             ${certBtnHtml}
@@ -528,32 +259,31 @@
       });
     }
 
-    function obtenerUrlEmbed(url) {
-      if (!url) return "";
-      let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-      if (youtubeMatch && youtubeMatch[1]) {
-        return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
-      }
-      return url;
-    }
-
-    function verMaterial(fileId, tituloEncoded, urlDriveEncoded) {
+    function verMaterial(tituloEncoded, urlDriveEncoded) {
       const titulo = decodeURIComponent(tituloEncoded);
-      const urlDrive = decodeURIComponent(urlDriveEncoded);
+      let urlDrive = decodeURIComponent(urlDriveEncoded);
       
-      capacitacionSeleccionada = { fileId, titulo };
+      capacitacionSeleccionada = { fileId: titulo, titulo: titulo };
 
       document.getElementById("capacitacionesSection").classList.add("hidden");
       document.getElementById("materialSection").classList.remove("hidden");
       document.getElementById("materialTitulo").innerText = titulo;
 
-      const embedUrl = obtenerUrlEmbed(urlDrive);
-      document.getElementById("viewerBox").innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay"></iframe>`;
+      // Transformar enlaces si son de YouTube o Google Drive Preview
+      if (urlDrive.includes("youtube.com/watch?v=")) {
+        urlDrive = urlDrive.replace("watch?v=", "embed/");
+      } else if (urlDrive.includes("youtu.be/")) {
+        urlDrive = urlDrive.replace("youtu.be/", "www.youtube.com/embed/");
+      } else if (urlDrive.includes("/view")) {
+        urlDrive = urlDrive.replace("/view", "/preview");
+      }
+
+      document.getElementById("viewerBox").innerHTML = `<iframe src="${urlDrive}" allowfullscreen allow="autoplay"></iframe>`;
     }
 
     function irAExamenDesdeMaterial() {
       document.getElementById("materialSection").classList.add("hidden");
-      iniciarExamen(capacitacionSeleccionada.fileId, encodeURIComponent(capacitacionSeleccionada.titulo));
+      iniciarExamen(encodeURIComponent(capacitacionSeleccionada.titulo));
     }
 
     function volverACapacitaciones() {
@@ -563,9 +293,9 @@
       document.getElementById("viewerBox").innerHTML = "";
     }
 
-    async function iniciarExamen(fileId, tituloEncoded) {
+    async function iniciarExamen(tituloEncoded) {
       const titulo = decodeURIComponent(tituloEncoded);
-      capacitacionSeleccionada = { fileId, titulo };
+      capacitacionSeleccionada = { fileId: titulo, titulo: titulo };
 
       document.getElementById("capacitacionesSection").classList.add("hidden");
       document.getElementById("examenSection").classList.remove("hidden");
@@ -584,7 +314,7 @@
       try {
         const res = await pedirJSONP({
           action: "generarExamen",
-          fileId: fileId,
+          fileId: titulo,
           legajo: usuarioActual.legajo,
           titulo: titulo
         });
@@ -614,25 +344,20 @@
         const box = document.createElement("div");
         box.className = "pregunta-box";
 
-        const esDoble = Array.isArray(p.correctas) && p.correctas.length > 1;
-        const inputType = esDoble ? "checkbox" : "radio";
-        const subtexto = esDoble 
-          ? "Seleccione las 2 opciones correctas (10 pts c/u)." 
-          : "Seleccione la opción correcta (12 pts).";
-
         let opcionesHtml = "";
         for (let key in p.opciones) {
-          opcionesHtml += `
-            <label class="opcion-item">
-              <input type="${inputType}" name="p_${index}" value="${key}">
-              <strong>${key})</strong> ${p.opciones[key]}
-            </label>
-          `;
+          if (p.opciones[key]) {
+            opcionesHtml += `
+              <label class="opcion-item">
+                <input type="radio" name="p_${index}" value="${key}">
+                <strong>${key})</strong> ${p.opciones[key]}
+              </label>
+            `;
+          }
         }
 
         box.innerHTML = `
-          <p style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">${index + 1}. ${p.enunciado}</p>
-          <p style="font-size:0.8rem; color:var(--primary); font-weight:600; margin-bottom:12px;">${subtexto}</p>
+          <p style="font-weight:700; color:var(--text-primary); margin-bottom:8px;">${index + 1}. ${p.enunciado}</p>
           ${opcionesHtml}
         `;
         container.appendChild(box);
@@ -640,33 +365,21 @@
     }
 
     async function evaluarRespostas() {
-      let puntajeTotal = 0;
+      let correctasCont = 0;
 
       preguntasExamenActual.forEach((p, index) => {
-        const esDoble = Array.isArray(p.correctas) && p.correctas.length > 1;
-
-        if (esDoble) {
-          const marcados = Array.from(document.querySelectorAll(`input[name="p_${index}"]:checked`))
-                                .map(el => el.value);
-          
-          p.correctas.forEach(cor => {
-            if (marcados.includes(cor)) {
-              puntajeTotal += 10;
-            }
-          });
-        } else {
-          const seleccionado = document.querySelector(`input[name="p_${index}"]:checked`);
-          if (seleccionado && p.correctas.includes(seleccionado.value)) {
-            puntajeTotal += 12;
-          }
+        const seleccionado = document.querySelector(`input[name="p_${index}"]:checked`);
+        if (seleccionado && p.correctas.includes(seleccionado.value)) {
+          correctasCont++;
         }
       });
 
-      const notaFinal = Math.min(100, puntajeTotal);
+      const totalPreguntas = preguntasExamenActual.length;
+      const notaFinal = Math.round((correctasCont / totalPreguntas) * 100);
       const errorMsg = document.getElementById("examenError");
       
       errorMsg.style.color = "var(--primary)";
-      errorMsg.innerText = "Evaluando y generando certificado PDF...";
+      errorMsg.innerText = "Guardando resultado...";
 
       try {
         const res = await pedirJSONP({
@@ -679,11 +392,7 @@
         });
 
         if (res.success) {
-          let mensaje = `Examen finalizado.\nPuntaje obtenido: ${notaFinal}/100\nEstado: ${res.estado}`;
-          if (res.urlCertificado) {
-            mensaje += `\n\n¡Certificado PDF generado con éxito! Puedes descargarlo directamente desde tu panel.`;
-          }
-          alert(mensaje);
+          alert(`Examen finalizado.\nNota obtenida: ${notaFinal}/100\nEstado: ${res.estado}`);
           location.reload();
         } else {
           errorMsg.style.color = "var(--danger)";
