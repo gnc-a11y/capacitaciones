@@ -101,19 +101,30 @@
       color: white;
       border: none;
       border-radius: 6px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: bold;
       cursor: pointer;
       transition: background 0.2s;
+      margin-top: 6px;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
     }
 
     .btn-secondary {
       background-color: #334155;
-      margin-bottom: 8px;
     }
 
     .btn-secondary:hover {
       background-color: #475569;
+    }
+
+    .btn-success {
+      background-color: #059669;
+    }
+
+    .btn-success:hover {
+      background-color: #047857;
     }
 
     .btn:hover {
@@ -214,6 +225,15 @@
       cursor: pointer;
     }
 
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -248,7 +268,7 @@
       <div class="cap-grid" id="capContainer"></div>
     </div>
 
-    <!-- VISOR (YOUTUBE / DRIVE) -->
+    <!-- VISOR -->
     <div id="materialSection" class="card card-wide hidden">
       <h2 id="materialTitulo">Material de Capacitación</h2>
       <div class="viewer-container" id="viewerBox"></div>
@@ -263,6 +283,12 @@
       <h2 id="examenTitulo">Examen</h2>
       <div id="loadingExamen" class="error-msg" style="color:#3b82f6;">Cargando preguntas de la evaluación...</div>
       <div id="preguntasContainer"></div>
+      
+      <div class="checkbox-container hidden" id="mailCheckContainer">
+        <input type="checkbox" id="chkEnviarMail" checked>
+        <label for="chkEnviarMail">Recibir certificado por correo electrónico en caso de aprobar.</label>
+      </div>
+
       <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button class="btn btn-secondary" onclick="volverACapacitaciones()">Cancelar</button>
         <button class="btn hidden" id="btnEnviarExamen" onclick="evaluarRespostas()">Enviar Examen</button>
@@ -272,14 +298,12 @@
   </main>
 
   <script>
-    // URL limpia sin corchetes
-    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
+    const URL_WEB_APP = "[https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec](https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec)";
 
-    let usuarioActual = { legajo: "", nombre: "" };
+    let usuarioActual = { legajo: "", nombre: "", correo: "" };
     let capacitacionSeleccionada = null;
     let preguntasExamenActual = [];
 
-    // Lógica JSONP corregida y sin corchetes
     function pedirJSONP(params) {
       return new Promise((resolve, reject) => {
         const callbackName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -288,7 +312,7 @@
         const timeout = setTimeout(() => {
           cleanup();
           reject(new Error("Tiempo de espera agotado al conectar con el servidor."));
-        }, 12000);
+        }, 15000);
 
         function cleanup() {
           clearTimeout(timeout);
@@ -310,7 +334,6 @@
         queryParams.append('callback', callbackName);
         queryParams.append('_ts', Date.now());
 
-        // Concatenación limpia de la URL
         script.src = URL_WEB_APP + '?' + queryParams.toString();
         document.body.appendChild(script);
       });
@@ -341,6 +364,7 @@
         if (res.success) {
           usuarioActual.legajo = res.legajo;
           usuarioActual.nombre = res.nombre;
+          usuarioActual.correo = res.correo;
           
           document.getElementById("userInfoHeader").innerText = `${res.nombre} (Legajo: ${res.legajo})`;
           document.getElementById("loginSection").classList.add("hidden");
@@ -371,9 +395,20 @@
       capacitaciones.forEach(cap => {
         let badgeHtml = "";
         let btnDisabled = "";
+        let certBtnHtml = "";
 
         if (cap.aprobado) {
           badgeHtml = `<span class="badge badge-approved">Aprobado</span>`;
+          if (cap.urlCertificado) {
+            certBtnHtml = `
+              <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success">
+                📄 Descargar Certificado (PDF)
+              </a>
+              <button class="btn btn-secondary" onclick="reenviarPorEmail('${encodeURIComponent(cap.titulo)}')">
+                ✉️ Recibir por Correo
+              </button>
+            `;
+          }
         } else if (cap.bloqueado) {
           badgeHtml = `<span class="badge badge-blocked">Límite alcanzado hoy (3/3)</span>`;
           btnDisabled = "disabled";
@@ -396,17 +431,40 @@
             <button class="btn" ${btnDisabled} onclick="iniciarExamen('${cap.fileId}', '${encodeURIComponent(cap.titulo)}')">
               ${cap.aprobado ? "Rendir Nuevamente" : "Rendir Examen"}
             </button>
+            ${certBtnHtml}
           </div>
         `;
         container.appendChild(card);
       });
     }
 
+    async function reenviarPorEmail(tituloEncoded) {
+      const titulo = decodeURIComponent(tituloEncoded);
+      alert(`Enviando certificado de "${titulo}" a ${usuarioActual.correo}...`);
+      
+      try {
+        const res = await pedirJSONP({
+          action: "reenviarCertificado",
+          legajo: usuarioActual.legajo,
+          capacitacion: titulo,
+          correo: usuarioActual.correo
+        });
+
+        if (res.success) {
+          alert("¡Certificado enviado a tu correo exitosamente!");
+        } else {
+          alert("No se pudo enviar: " + res.message);
+        }
+      } catch (e) {
+        alert("Error de conexión al intentar enviar el correo.");
+      }
+    }
+
     function obtenerUrlEmbed(url) {
       if (!url) return "";
       let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (youtubeMatch && youtubeMatch[1]) {
-        return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
+        return `[https://www.youtube.com/embed/$](https://www.youtube.com/embed/$){youtubeMatch[1]}?autoplay=1`;
       }
       return url;
     }
@@ -449,10 +507,12 @@
       const preguntasBox = document.getElementById("preguntasContainer");
       const btnEnviar = document.getElementById("btnEnviarExamen");
       const errorMsg = document.getElementById("examenError");
+      const mailCheck = document.getElementById("mailCheckContainer");
 
       loading.classList.remove("hidden");
       preguntasBox.innerHTML = "";
       btnEnviar.classList.add("hidden");
+      mailCheck.classList.add("hidden");
       errorMsg.innerText = "";
 
       try {
@@ -468,6 +528,7 @@
           loading.classList.add("hidden");
           renderPreguntas(res.preguntas);
           btnEnviar.classList.remove("hidden");
+          mailCheck.classList.remove("hidden");
         } else {
           loading.classList.add("hidden");
           errorMsg.innerText = res.message || "Error al obtener preguntas.";
@@ -535,21 +596,29 @@
       });
 
       const notaFinal = Math.min(100, puntajeTotal);
+      const enviarMail = document.getElementById("chkEnviarMail").checked;
       const errorMsg = document.getElementById("examenError");
+      
       errorMsg.style.color = "#3b82f6";
-      errorMsg.innerText = "Guardando resultado...";
+      errorMsg.innerText = "Evaluando y generando certificado en PDF...";
 
       try {
         const res = await pedirJSONP({
           action: "guardarResultado",
           legajo: usuarioActual.legajo,
           nombre: usuarioActual.nombre,
+          correo: usuarioActual.correo,
           capacitacion: capacitacionSeleccionada.titulo,
-          nota: notaFinal
+          nota: notaFinal,
+          enviarMail: enviarMail
         });
 
         if (res.success) {
-          alert(`Examen finalizado.\nPuntaje obtenido: ${notaFinal}/100\nEstado: ${res.estado}`);
+          let mensaje = `Examen finalizado.\nPuntaje obtenido: ${notaFinal}/100\nEstado: ${res.estado}`;
+          if (res.urlCertificado) {
+            mensaje += `\n\n¡Certificado PDF generado exitosamente! Puedes descargarlo desde la plataforma.`;
+          }
+          alert(mensaje);
           location.reload();
         } else {
           errorMsg.style.color = "#ef4444";
