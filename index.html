@@ -239,16 +239,19 @@
           ? `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">📄 Descargar Certificado</a>` 
           : "";
 
+        // Detectar si la URL viene bajo urlDrive, url, o link
+        const urlMaterial = cap.urlDrive || cap.url || cap.link || "";
+
         const card = document.createElement("div");
         card.className = "cap-card";
         card.innerHTML = `
           <div>
             <div class="cap-title">${cap.titulo}</div>
-            <div class="cap-desc">${cap.descripcion}</div>
+            <div class="cap-desc">${cap.descripcion || ""}</div>
             ${badgeHtml}
           </div>
           <div style="margin-top:12px;">
-            <button class="btn btn-secondary" onclick="verMaterial('${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(cap.urlDrive)}')">Ver Contenido</button>
+            <button class="btn btn-secondary" onclick="verMaterial('${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(urlMaterial)}')">Ver Contenido</button>
             <button class="btn" ${cap.bloqueado ? "disabled" : ""} style="margin-top:8px;" onclick="iniciarExamen('${encodeURIComponent(cap.titulo)}')">
               ${cap.aprobado ? "Rendir Nuevamente" : "Rendir Examen"}
             </button>
@@ -269,16 +272,34 @@
       document.getElementById("materialSection").classList.remove("hidden");
       document.getElementById("materialTitulo").innerText = titulo;
 
-      // Transformar la URL para visualización según su origen
-      if (urlDrive.includes("youtube.com/watch?v=")) {
+      const viewerBox = document.getElementById("viewerBox");
+
+      // Validar si existe enlace válido
+      if (!urlDrive || urlDrive === "undefined" || urlDrive.trim() === "") {
+        viewerBox.innerHTML = `<div style="padding: 40px; text-align: center; color: white;">
+          <h3>No se ha adjuntado un enlace válido para este material.</h3>
+          <p style="margin-top: 10px; color: #cbd5e1;">Asegúrate de configurar la URL en la hoja de cálculo.</p>
+        </div>`;
+        return;
+      }
+
+      // Transformación inteligente de URLs para incrustar en Iframe
+      if (urlDrive.includes("drive.google.com")) {
+        if (urlDrive.includes("/view")) {
+          urlDrive = urlDrive.replace("/view", "/preview");
+        } else if (!urlDrive.includes("/preview")) {
+          const match = urlDrive.match(/d\/([a-zA-Z0-9_-]+)/);
+          if (match && match[1]) {
+            urlDrive = `https://drive.google.com/file/d/${match[1]}/preview`;
+          }
+        }
+      } else if (urlDrive.includes("youtube.com/watch?v=")) {
         urlDrive = urlDrive.replace("watch?v=", "embed/");
       } else if (urlDrive.includes("youtu.be/")) {
         urlDrive = urlDrive.replace("youtu.be/", "www.youtube.com/embed/");
-      } else if (urlDrive.includes("/view")) {
-        urlDrive = urlDrive.replace("/view", "/preview");
       }
 
-      document.getElementById("viewerBox").innerHTML = `<iframe src="${urlDrive}" allowfullscreen allow="autoplay"></iframe>`;
+      viewerBox.innerHTML = `<iframe src="${urlDrive}" allowfullscreen allow="autoplay"></iframe>`;
     }
 
     function irAExamenDesdeMaterial() {
