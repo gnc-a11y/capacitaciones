@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal de Capacitaciones</title>
+  <title>Portal de Capacitaciones CEEZ</title>
   <style>
     * {
       box-sizing: border-box;
@@ -222,7 +222,7 @@
 <body>
 
   <header>
-    <div class="logo">Capacitaciones Técnicas</div>
+    <div class="logo">Capacitaciones CEEZ</div>
     <div class="user-info" id="userInfoHeader"></div>
   </header>
 
@@ -261,7 +261,7 @@
     <!-- EXAMEN -->
     <div id="examenSection" class="card card-wide hidden">
       <h2 id="examenTitulo">Examen</h2>
-      <div id="loadingExamen" class="error-msg" style="color:#3b82f6;">Generando evaluación de nivel avanzado...</div>
+      <div id="loadingExamen" class="error-msg" style="color:#3b82f6;">Cargando preguntas de la evaluación...</div>
       <div id="preguntasContainer"></div>
       <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button class="btn btn-secondary" onclick="volverACapacitaciones()">Cancelar</button>
@@ -272,7 +272,7 @@
   </main>
 
   <script>
-    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
+    const URL_WEB_APP = "[https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec](https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec)";
 
     let usuarioActual = { legajo: "", nombre: "" };
     let capacitacionSeleccionada = null;
@@ -398,7 +398,7 @@
       if (!url) return "";
       let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (youtubeMatch && youtubeMatch[1]) {
-        return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
+        return `[https://www.youtube.com/embed/$](https://www.youtube.com/embed/$){youtubeMatch[1]}?autoplay=1`;
       }
       return url;
     }
@@ -462,11 +462,11 @@
           btnEnviar.classList.remove("hidden");
         } else {
           loading.classList.add("hidden");
-          errorMsg.innerText = res.message || "Error al obtener el examen de la IA.";
+          errorMsg.innerText = res.message || "Error al obtener preguntas.";
         }
       } catch (err) {
         loading.classList.add("hidden");
-        errorMsg.innerText = "Error de conexión al generar el examen.";
+        errorMsg.innerText = "Error de conexión al cargar el examen.";
       }
     }
 
@@ -478,19 +478,25 @@
         const box = document.createElement("div");
         box.className = "pregunta-box";
 
+        const esDoble = Array.isArray(p.correctas) && p.correctas.length > 1;
+        const inputType = esDoble ? "checkbox" : "radio";
+        const subtexto = esDoble 
+          ? "Seleccione las 2 opciones correctas (10 pts c/u)." 
+          : "Seleccione la opción correcta (12 pts).";
+
         let opcionesHtml = "";
         for (let key in p.opciones) {
           opcionesHtml += `
             <label class="opcion-item">
-              <input type="radio" name="p_${index}" value="${key}">
+              <input type="${inputType}" name="p_${index}" value="${key}">
               <strong>${key})</strong> ${p.opciones[key]}
             </label>
           `;
         }
 
         box.innerHTML = `
-          <p style="font-weight:bold; margin-bottom:8px;">${index + 1}. ${p.enunciado}</p>
-          <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:12px;">${p.instruccion || "Seleccione la opción correcta."}</p>
+          <p style="font-weight:bold; margin-bottom:4px;">${index + 1}. ${p.enunciado}</p>
+          <p style="font-size:0.8rem; color:#3b82f6; margin-bottom:12px;">${subtexto}</p>
           ${opcionesHtml}
         `;
         container.appendChild(box);
@@ -498,17 +504,29 @@
     }
 
     async function evaluarRespostas() {
-      let correctasContador = 0;
-      const totalPreguntas = preguntasExamenActual.length;
+      let puntajeTotal = 0;
 
       preguntasExamenActual.forEach((p, index) => {
-        const selected = document.querySelector(`input[name="p_${index}"]:checked`);
-        if (selected && p.correctas.includes(selected.value)) {
-          correctasContador++;
+        const esDoble = Array.isArray(p.correctas) && p.correctas.length > 1;
+
+        if (esDoble) {
+          const marcados = Array.from(document.querySelectorAll(`input[name="p_${index}"]:checked`))
+                                .map(el => el.value);
+          
+          p.correctas.forEach(cor => {
+            if (marcados.includes(cor)) {
+              puntajeTotal += 10;
+            }
+          });
+        } else {
+          const seleccionado = document.querySelector(`input[name="p_${index}"]:checked`);
+          if (seleccionado && p.correctas.includes(seleccionado.value)) {
+            puntajeTotal += 12;
+          }
         }
       });
 
-      const notaPorcentaje = Math.round((correctasContador / totalPreguntas) * 100);
+      const notaFinal = Math.min(100, puntajeTotal);
       const errorMsg = document.getElementById("examenError");
       errorMsg.style.color = "#3b82f6";
       errorMsg.innerText = "Guardando resultado...";
@@ -519,11 +537,11 @@
           legajo: usuarioActual.legajo,
           nombre: usuarioActual.nombre,
           capacitacion: capacitacionSeleccionada.titulo,
-          nota: notaPorcentaje
+          nota: notaFinal
         }, "cb_guardar");
 
         if (res.success) {
-          alert(`Examen finalizado.\nNota obtenida: ${notaPorcentaje}%\nEstado: ${res.estado}`);
+          alert(`Examen finalizado.\nPuntaje obtenido: ${notaFinal}/100\nEstado: ${res.estado}`);
           location.reload();
         } else {
           errorMsg.style.color = "#ef4444";
