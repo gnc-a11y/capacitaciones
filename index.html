@@ -3,418 +3,383 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal de Capacitaciones CEEZ</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Portal de Capacitaciones S&H</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    :root {
-      --bg-main: #f8fafc;
-      --bg-card: #ffffff;
-      --border-color: #e2e8f0;
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-light: #eff6ff;
-      --success: #10b981;
-      --success-hover: #059669;
-      --success-light: #ecfdf5;
-      --warning: #f59e0b;
-      --warning-light: #fffbeb;
-      --danger: #ef4444;
-      --danger-light: #fef2f2;
-      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-      --radius: 12px;
+    body {
+      background-color: #f8fafc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-    body { background-color: var(--bg-main); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; }
-    
-    header { background-color: #ffffff; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-    .logo-container { display: flex; align-items: center; gap: 10px; }
-    .logo-badge { background-color: var(--primary); color: white; font-weight: 800; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; }
-    .logo-text { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-    .user-info { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background-color: var(--bg-main); padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border-color); }
-
-    main { flex: 1; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; }
-    .card { background-color: var(--bg-card); border-radius: var(--radius); padding: 36px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); width: 100%; max-width: 440px; }
-    .card-wide { max-width: 960px; }
-    h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 24px; text-align: center; }
-
-    .form-group { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 8px; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); }
-    input[type="email"], input[type="text"] { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-color); background-color: #ffffff; color: var(--text-primary); font-size: 0.95rem; outline: none; }
-    input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
-
-    .btn { width: 100%; padding: 12px 20px; background-color: var(--primary); color: white; border: none; border-radius: 8px; font-size: 0.925rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow-sm); }
-    .btn:hover { background-color: var(--primary-hover); }
-    .btn-secondary { background-color: #ffffff; color: var(--text-secondary); border: 1px solid var(--border-color); }
-    .btn-secondary:hover { background-color: var(--bg-main); color: var(--text-primary); }
-    .btn-success { background-color: var(--success); color: white; }
-    .btn-success:hover { background-color: var(--success-hover); }
-    .btn:disabled { background-color: #cbd5e1; cursor: not-allowed; }
-
-    .error-msg { font-size: 0.875rem; font-weight: 500; text-align: center; margin-top: 16px; min-height: 20px; }
-
-    .cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 10px; }
-    .cap-card { background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm); }
-    .cap-title { font-weight: 700; margin-bottom: 8px; color: var(--text-primary); font-size: 1.1rem; }
-    .cap-desc { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; word-break: break-word; }
-
-    .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 16px; }
-    .badge-approved { background-color: var(--success-light); color: var(--success); }
-    .badge-blocked { background-color: var(--danger-light); color: var(--danger); }
-    .badge-pending { background-color: var(--warning-light); color: var(--warning); }
-
-    .viewer-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; background: #000; border-radius: var(--radius); margin-bottom: 24px; }
-    .viewer-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
-
-    .pregunta-box { background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
-    .opcion-item { margin: 10px 0; display: flex; align-items: center; gap: 12px; font-size: 0.95rem; color: var(--text-primary); cursor: pointer; background-color: #ffffff; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); }
-    .opcion-item:hover { border-color: var(--primary); background-color: var(--primary-light); }
-    .opcion-item input { accent-color: var(--primary); width: 16px; height: 16px; }
-
-    .hidden { display: none !important; }
+    .header-bar {
+      background-color: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-custom {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+      background: #ffffff;
+    }
+    .card-custom:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .badge-status {
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+    .badge-aprobado {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+    .badge-intentos {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+    .badge-bloqueado {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+    .modal-header {
+      background-color: #1e3a8a;
+      color: white;
+    }
+    .btn-close-white {
+      filter: invert(1);
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="logo-container">
-      <div class="logo-badge">CEEZ</div>
-      <div class="logo-text">Portal de Capacitaciones</div>
+  <!-- Header -->
+  <div class="header-bar shadow-sm">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary fs-6">CEEZ</span>
+      <h5 class="m-0 fw-bold text-dark">Portal de Capacitaciones</h5>
     </div>
-    <div class="user-info hidden" id="userInfoHeader"></div>
-  </header>
+    <div id="usuarioInfo" class="text-muted fw-semibold small"></div>
+  </div>
 
-  <main>
-    <div id="loginSection" class="card">
-      <h2>Iniciar Sesión</h2>
-      <div class="form-group">
-        <label for="correo">Correo Electrónico</label>
-        <input type="email" id="correo" value="12@gmail.com" placeholder="ejemplo@correo.com">
-      </div>
-      <div class="form-group">
-        <label for="dni">Número de DNI</label>
-        <input type="text" id="dni" value="12123456" placeholder="Ingrese su DNI sin puntos">
-      </div>
-      <button class="btn" id="btnLogin" onclick="ejecutarLogin()">Ingresar a la Plataforma</button>
-      <div class="error-msg" id="loginError"></div>
-    </div>
+  <div class="container my-5">
 
-    <div id="capacitacionesSection" class="card card-wide hidden">
-      <h2>Capacitaciones Disponibles</h2>
-      <div class="cap-grid" id="capContainer"></div>
-    </div>
-
-    <div id="materialSection" class="card card-wide hidden">
-      <h2 id="materialTitulo">Material de Capacitación</h2>
-      <div class="viewer-container" id="viewerBox"></div>
-      <div style="display: flex; gap: 12px;">
-        <button class="btn btn-secondary" onclick="volverACapacitaciones()">Volver al Catálogo</button>
-        <button class="btn" onclick="irAExamenDesdeMaterial()">Rendir Examen</button>
+    <!-- Vista Login -->
+    <div id="vistaLogin" class="row justify-content-center">
+      <div class="col-md-5">
+        <div class="card card-custom p-4">
+          <h4 class="text-center fw-bold mb-4 text-primary">Ingreso al Portal</h4>
+          <form id="formLogin">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Correo Electrónico</label>
+              <input type="email" id="loginCorreo" class="form-control" placeholder="ejemplo@ceez.coop" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Número de DNI</label>
+              <input type="number" id="loginDni" class="form-control" placeholder="Ingrese su DNI" required>
+            </div>
+            <button type="submit" id="btnIngresar" class="btn btn-primary w-100 fw-bold py-2">Ingresar</button>
+          </form>
+          <div id="loginError" class="alert alert-danger mt-3 d-none" role="alert"></div>
+        </div>
       </div>
     </div>
 
-    <div id="examenSection" class="card card-wide hidden">
-      <h2 id="examenTitulo">Examen de Evaluación</h2>
-      <div id="loadingExamen" class="error-msg" style="color:var(--primary);">Cargando preguntas de la evaluación...</div>
-      <div id="preguntasContainer"></div>
-
-      <div style="display: flex; gap: 12px; margin-top: 20px;">
-        <button class="btn btn-secondary" onclick="volverACapacitaciones()">Cancelar</button>
-        <button class="btn hidden" id="btnEnviarExamen" onclick="evaluarRespostas()">Enviar Evaluación</button>
-      </div>
-      <div class="error-msg" id="examenError"></div>
+    <!-- Vista Capacitaciones -->
+    <div id="vistaCapacitaciones" class="d-none">
+      <h3 class="text-center fw-bold mb-4 text-dark">Capacitaciones Disponibles</h3>
+      <div id="listaCapacitaciones" class="row g-4 justify-content-center"></div>
     </div>
-  </main>
+
+  </div>
+
+  <!-- Modal Contenido -->
+  <div class="modal fade" id="modalContenido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="tituloContenido">Material de Capacitación</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center p-4">
+          <p class="text-muted mb-4">Asegúrese de revisar todo el material atentamente antes de rendir la evaluación.</p>
+          <a id="btnLinkDrive" href="#" target="_blank" class="btn btn-outline-primary btn-lg fw-bold">
+            📁 Abrir Material en Google Drive
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Examen -->
+  <div class="modal fade" id="modalExamen" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="tituloExamen">Evaluación</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4" id="cuerpoExamen">
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Cargando preguntas...</p>
+          </div>
+        </div>
+        <div class="modal-footer" id="footerExamen">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="btnEnviarExamen" class="btn btn-success fw-bold" onclick="evaluarExamen()">Enviar Evaluación</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
+    // URL del Web App de Apps Script (Asegúrate de colocar tu URL pública aquí)
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwO4rEexO8o4mKjC4I1vO-_T27o84RzT99N1V8N-P3N19K5C5P3N19/exec"; // Reemplaza por tu URL ejecutoria
 
-    let usuarioActual = { legajo: "", nombre: "", correo: "" };
-    let capacitacionSeleccionada = null;
-    let preguntasExamenActual = [];
+    let usuarioActual = null;
+    let preguntasActuales = [];
+    let capacitacionActual = null;
 
-    function pedirJSONP(params) {
-      return new Promise((resolve, reject) => {
-        const callbackName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-        const script = document.createElement('script');
+    // Petición JSONP para evitar bloqueos por CORS
+    function callGAS(params, callback) {
+      const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        callback(data);
+      };
 
-        const timeout = setTimeout(() => {
-          cleanup();
-          reject(new Error("Tiempo de espera agotado."));
-        }, 15000);
+      params.callback = callbackName;
+      const query = Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+        .join('&');
 
-        function cleanup() {
-          clearTimeout(timeout);
-          if (window[callbackName]) delete window[callbackName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-        }
-
-        window[callbackName] = function(data) {
-          cleanup();
-          resolve(data);
-        };
-
-        script.onerror = function() {
-          cleanup();
-          reject(new Error("Error de red."));
-        };
-
-        const queryParams = new URLSearchParams(params);
-        queryParams.append('callback', callbackName);
-        queryParams.append('_ts', Date.now());
-
-        script.src = URL_WEB_APP + '?' + queryParams.toString();
-        document.body.appendChild(script);
-      });
+      const script = document.createElement('script');
+      script.src = SCRIPT_URL + '?' + query;
+      document.body.appendChild(script);
     }
 
-    async function ejecutarLogin() {
-      const correo = document.getElementById("correo").value.trim();
-      const dni = document.getElementById("dni").value.trim();
-      const msgError = document.getElementById("loginError");
-      const btn = document.getElementById("btnLogin");
+    // Login
+    document.getElementById('formLogin').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const correo = document.getElementById('loginCorreo').value.trim();
+      const dni = document.getElementById('loginDni').value.trim();
+      const btn = document.getElementById('btnIngresar');
+      const errDiv = document.getElementById('loginError');
 
-      if (!correo || !dni) {
-        msgError.style.color = "var(--danger)";
-        msgError.innerText = "Por favor ingresa correo y DNI.";
-        return;
-      }
-
-      msgError.style.color = "var(--primary)";
-      msgError.innerText = "Verificando credenciales...";
       btn.disabled = true;
+      btn.innerText = "Verificando...";
+      errDiv.classList.add('d-none');
 
-      try {
-        const res = await pedirJSONP({ action: "login", correo: correo, dni: dni });
+      callGAS({ action: 'login', correo: correo, dni: dni }, function(res) {
+        btn.disabled = false;
+        btn.innerText = "Ingresar";
 
         if (res.success) {
-          usuarioActual.legajo = res.legajo;
-          usuarioActual.nombre = res.nombre;
-          usuarioActual.correo = res.correo;
-          
-          const headerInfo = document.getElementById("userInfoHeader");
-          headerInfo.innerText = `${res.nombre} (Legajo: ${res.legajo})`;
-          headerInfo.classList.remove("hidden");
-
-          document.getElementById("loginSection").classList.add("hidden");
-          document.getElementById("capacitacionesSection").classList.remove("hidden");
-          
+          usuarioActual = res;
+          document.getElementById('usuarioInfo').innerText = `${res.nombre} (Legajo: ${res.legajo})`;
+          document.getElementById('vistaLogin').classList.add('d-none');
+          document.getElementById('vistaCapacitaciones').classList.remove('d-none');
           renderCapacitaciones(res.capacitaciones);
         } else {
-          msgError.style.color = "var(--danger)";
-          msgError.innerText = res.message || "Credenciales incorrectas.";
+          errDiv.innerText = res.message || "Credenciales inválidas.";
+          errDiv.classList.remove('d-none');
         }
-      } catch (err) {
-        msgError.style.color = "var(--danger)";
-        msgError.innerText = "Error de conexión. Inténtalo de nuevo.";
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    function renderCapacitaciones(capacitaciones) {
-      const container = document.getElementById("capContainer");
-      container.innerHTML = "";
-
-      if (!capacitaciones || capacitaciones.length === 0) {
-        container.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-secondary);'>No hay capacitaciones activas.</p>";
-        return;
-      }
-
-      capacitaciones.forEach(cap => {
-        let badgeHtml = cap.aprobado 
-          ? `<span class="badge badge-approved">✓ Aprobado</span>`
-          : cap.bloqueado 
-            ? `<span class="badge badge-blocked">Límite alcanzado hoy (3/3)</span>`
-            : `<span class="badge badge-pending">Intentos hoy: ${cap.intentosHoy}/3</span>`;
-
-        let urlMaterial = cap.urlDrive || "";
-        let descripcionLimpia = cap.descripcion || "";
-
-        const matchUrl = descripcionLimpia.match(/https?:\/\/[^\s]+/);
-        if (matchUrl) {
-          if (!urlMaterial) urlMaterial = matchUrl[0];
-          descripcionLimpia = descripcionLimpia.replace(matchUrl[0], "").trim();
-        }
-
-        const card = document.createElement("div");
-        card.className = "cap-card";
-        card.innerHTML = `
-          <div>
-            <div class="cap-title">${cap.titulo}</div>
-            <div class="cap-desc">${descripcionLimpia}</div>
-            ${badgeHtml}
-          </div>
-          <div style="margin-top:12px;">
-            <button class="btn btn-secondary" onclick="verMaterial('${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(urlMaterial)}')">Ver Contenido</button>
-            <button class="btn" ${cap.bloqueado ? "disabled" : ""} style="margin-top:8px;" onclick="iniciarExamen('${encodeURIComponent(cap.titulo)}')">
-              ${cap.aprobado ? "Rendir Nuevamente" : "Rendir Examen"}
-            </button>
-          </div>
-        `;
-        container.appendChild(card);
       });
-    }
+    });
 
-    function verMaterial(tituloEncoded, urlDriveEncoded) {
-      const titulo = decodeURIComponent(tituloEncoded);
-      let urlDrive = decodeURIComponent(urlDriveEncoded);
-      
-      capacitacionSeleccionada = { fileId: titulo, titulo: titulo };
+    // Renderizar Capacitaciones
+    function renderCapacitaciones(lista) {
+      const cont = document.getElementById('listaCapacitaciones');
+      cont.innerHTML = '';
 
-      document.getElementById("capacitacionesSection").classList.add("hidden");
-      document.getElementById("materialSection").classList.remove("hidden");
-      document.getElementById("materialTitulo").innerText = titulo;
+      lista.forEach(cap => {
+        let badgeEstado = '';
+        let botonExamen = '';
 
-      const viewerBox = document.getElementById("viewerBox");
-
-      if (!urlDrive || urlDrive === "undefined" || urlDrive.trim() === "") {
-        viewerBox.innerHTML = `<div style="padding: 40px; text-align: center; color: white;">
-          <h3>No hay un enlace configurado para esta capacitación.</h3>
-        </div>`;
-        return;
-      }
-
-      if (urlDrive.includes("drive.google.com")) {
-        const match = urlDrive.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) {
-          urlDrive = `https://drive.google.com/file/d/${match[1]}/preview`;
-        } else if (urlDrive.includes("/view")) {
-          urlDrive = urlDrive.replace("/view", "/preview");
-        }
-      } else if (urlDrive.includes("youtube.com/watch?v=")) {
-        urlDrive = urlDrive.replace("watch?v=", "embed/");
-      } else if (urlDrive.includes("youtu.be/")) {
-        urlDrive = urlDrive.replace("youtu.be/", "www.youtube.com/embed/");
-      }
-
-      viewerBox.innerHTML = `<iframe src="${urlDrive}" allowfullscreen allow="autoplay"></iframe>`;
-    }
-
-    function irAExamenDesdeMaterial() {
-      document.getElementById("materialSection").classList.add("hidden");
-      iniciarExamen(encodeURIComponent(capacitacionSeleccionada.titulo));
-    }
-
-    function volverACapacitaciones() {
-      document.getElementById("materialSection").classList.add("hidden");
-      document.getElementById("examenSection").classList.add("hidden");
-      document.getElementById("capacitacionesSection").classList.remove("hidden");
-      document.getElementById("viewerBox").innerHTML = "";
-    }
-
-    async function iniciarExamen(tituloEncoded) {
-      const titulo = decodeURIComponent(tituloEncoded);
-      capacitacionSeleccionada = { fileId: titulo, titulo: titulo };
-
-      document.getElementById("capacitacionesSection").classList.add("hidden");
-      document.getElementById("examenSection").classList.remove("hidden");
-      document.getElementById("examenTitulo").innerText = "Evaluación: " + titulo;
-      
-      const loading = document.getElementById("loadingExamen");
-      const preguntasBox = document.getElementById("preguntasContainer");
-      const btnEnviar = document.getElementById("btnEnviarExamen");
-      const errorMsg = document.getElementById("examenError");
-
-      loading.classList.remove("hidden");
-      preguntasBox.innerHTML = "";
-      btnEnviar.classList.add("hidden");
-      errorMsg.innerText = "";
-
-      try {
-        const res = await pedirJSONP({
-          action: "generarExamen",
-          titulo: titulo
-        });
-
-        if (res.success && res.preguntas) {
-          preguntasExamenActual = res.preguntas;
-          loading.classList.add("hidden");
-          renderPreguntas(res.preguntas);
-          btnEnviar.classList.remove("hidden");
-        } else {
-          loading.classList.add("hidden");
-          errorMsg.style.color = "var(--danger)";
-          errorMsg.innerText = res.message || "Error al obtener preguntas.";
-        }
-      } catch (err) {
-        loading.classList.add("hidden");
-        errorMsg.style.color = "var(--danger)";
-        errorMsg.innerText = "Error de conexión al cargar el examen.";
-      }
-    }
-
-    function renderPreguntas(preguntas) {
-      const container = document.getElementById("preguntasContainer");
-      container.innerHTML = "";
-
-      preguntas.forEach((p, index) => {
-        const box = document.createElement("div");
-        box.className = "pregunta-box";
-
-        let opcionesHtml = "";
-        for (let key in p.opciones) {
-          if (p.opciones[key]) {
-            opcionesHtml += `
-              <label class="opcion-item">
-                <input type="radio" name="p_${index}" value="${key}">
-                <strong>${key})</strong> ${p.opciones[key]}
-              </label>
-            `;
+        if (cap.aprobado) {
+          badgeEstado = `<span class="badge badge-status badge-aprobado">✓ Aprobado</span>`;
+          botonExamen = `
+            <button class="btn btn-outline-primary w-100 mb-2" onclick="iniciarExamen('${cap.titulo}')">Rendir Nuevamente</button>
+          `;
+          if (cap.urlCertificado) {
+            botonExamen += `
+              <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success w-100 fw-bold">
+                📄 Ver / Descargar Certificado
+              </a>`;
           }
+        } else if (cap.bloqueado) {
+          badgeEstado = `<span class="badge badge-status badge-bloqueado">Límite de 3 intentos alcanzado hoy</span>`;
+          botonExamen = `<button class="btn btn-secondary w-100" disabled>Bloqueado por hoy</button>`;
+        } else {
+          badgeEstado = `<span class="badge badge-status badge-intentos">Intentos hoy: ${cap.intentosHoy}/3</span>`;
+          botonExamen = `<button class="btn btn-primary w-100" onclick="iniciarExamen('${cap.titulo}')">Rendir Examen</button>`;
         }
 
-        box.innerHTML = `
-          <p style="font-weight:700; color:var(--text-primary); margin-bottom:8px;">${index + 1}. ${p.enunciado}</p>
-          ${opcionesHtml}
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-5';
+        col.innerHTML = `
+          <div class="card card-custom h-100 p-4 d-flex flex-column justify-content-between">
+            <div>
+              <h5 class="fw-bold text-dark mb-2">${cap.titulo}</h5>
+              <p class="text-muted small mb-3">${cap.descripcion}</p>
+              <div class="mb-3">${badgeEstado}</div>
+            </div>
+            <div>
+              <button class="btn btn-outline-secondary w-100 mb-2" onclick="verContenido('${cap.titulo}', '${cap.urlDrive}')">Ver Contenido</button>
+              ${botonExamen}
+            </div>
+          </div>
         `;
-        container.appendChild(box);
+        cont.appendChild(col);
       });
     }
 
-    async function evaluarRespostas() {
-      let correctasCont = 0;
+    // Modal Contenido
+    function verContenido(titulo, url) {
+      document.getElementById('tituloContenido').innerText = titulo;
+      document.getElementById('btnLinkDrive').href = url;
+      new bootstrap.Modal(document.getElementById('modalContenido')).show();
+    }
 
-      preguntasExamenActual.forEach((p, index) => {
-        const seleccionado = document.querySelector(`input[name="p_${index}"]:checked`);
-        if (seleccionado && p.correctas.includes(seleccionado.value)) {
-          correctasCont++;
+    // Modal Examen
+    function iniciarExamen(titulo) {
+      capacitacionActual = titulo;
+      document.getElementById('tituloExamen').innerText = "Evaluación: " + titulo;
+      document.getElementById('cuerpoExamen').innerHTML = `
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted">Generando examen aleatorio...</p>
+        </div>`;
+      document.getElementById('footerExamen').classList.remove('d-none');
+
+      const modalExamen = new bootstrap.Modal(document.getElementById('modalExamen'));
+      modalExamen.show();
+
+      callGAS({ action: 'generarExamen', titulo: titulo }, function(res) {
+        if (res.success) {
+          preguntasActuales = res.preguntas;
+          renderPreguntas(res.preguntas);
+        } else {
+          document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res.message}</div>`;
+          document.getElementById('footerExamen').classList.add('d-none');
+        }
+      });
+    }
+
+    // Renderizar Preguntas
+    function renderPreguntas(preguntas) {
+      let html = '';
+      preguntas.forEach((p, idx) => {
+        html += `
+          <div class="mb-4 p-3 border rounded bg-light">
+            <p class="fw-bold mb-2">${idx + 1}. ${p.enunciado}</p>`;
+        
+        Object.keys(p.opciones).forEach(key => {
+          const isMultiple = p.correctas.length > 1;
+          const inputType = isMultiple ? 'checkbox' : 'radio';
+          const inputName = isMultiple ? `p_${idx}_${key}` : `p_${idx}`;
+
+          html += `
+            <div class="form-check my-1">
+              <input class="form-check-input" type="${inputType}" name="${inputName}" value="${key}" id="p_${idx}_${key}">
+              <label class="form-check-label" for="p_${idx}_${key}">
+                ${p.opciones[key]}
+              </label>
+            </div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      document.getElementById('cuerpoExamen').innerHTML = html;
+    }
+
+    // Evaluar y Guardar Resultado
+    function evaluarExamen() {
+      let correctasContador = 0;
+
+      preguntasActuales.forEach((p, idx) => {
+        const isMultiple = p.correctas.length > 1;
+        let seleccionadas = [];
+
+        if (isMultiple) {
+          Object.keys(p.opciones).forEach(key => {
+            const input = document.getElementById(`p_${idx}_${key}`);
+            if (input && input.checked) seleccionadas.push(key);
+          });
+        } else {
+          const checked = document.querySelector(`input[name="p_${idx}"]:checked`);
+          if (checked) seleccionadas.push(checked.value);
+        }
+
+        // Comparación de respuestas
+        seleccionadas.sort();
+        const correctas = [...p.correctas].sort();
+        if (JSON.stringify(seleccionadas) === JSON.stringify(correctas)) {
+          correctasContador++;
         }
       });
 
-      const totalPreguntas = preguntasExamenActual.length;
-      const notaFinal = Math.round((correctasCont / totalPreguntas) * 100);
-      const errorMsg = document.getElementById("examenError");
-      
-      errorMsg.style.color = "var(--primary)";
-      errorMsg.innerText = "Guardando resultado...";
+      // Cálculo de Nota sobre 100%
+      const nota = Math.round((correctasContador / preguntasActuales.length) * 100);
 
-      try {
-        const res = await pedirJSONP({
-          action: "guardarResultado",
-          legajo: usuarioActual.legajo,
-          nombre: usuarioActual.nombre,
-          correo: usuarioActual.correo,
-          capacitacion: capacitacionSeleccionada.titulo,
-          nota: notaFinal
-        });
+      document.getElementById('cuerpoExamen').innerHTML = `
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted">Procesando y guardando calificación...</p>
+        </div>`;
+      document.getElementById('footerExamen').classList.add('d-none');
 
+      callGAS({
+        action: 'guardarResultado',
+        legajo: usuarioActual.legajo,
+        nombre: usuarioActual.nombre,
+        capacitacion: capacitacionActual,
+        nota: nota
+      }, function(res) {
         if (res.success) {
-          alert(`Examen finalizado.\nNota obtenida: ${notaFinal}/100\nEstado: ${res.estado}`);
-          location.reload();
+          const aprobado = res.estado === "Aprobado";
+          let alertClass = aprobado ? "alert-success" : "alert-danger";
+          let tituloRes = aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada";
+          
+          let htmlRes = `
+            <div class="alert ${alertClass} text-center p-4">
+              <h4>${tituloRes}</h4>
+              <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo requerido: 60%)</p>`;
+
+          if (aprobado && res.urlCertificado) {
+            htmlRes += `
+              <div class="mt-4">
+                <a href="${res.urlCertificado}" target="_blank" class="btn btn-success btn-lg fw-bold">
+                  🎓 Abrir / Descargar Certificado (PDF)
+                </a>
+              </div>`;
+          }
+
+          htmlRes += `</div>`;
+          document.getElementById('cuerpoExamen').innerHTML = htmlRes;
+
+          // Recargar capacitaciones para refrescar botones e intentos
+          callGAS({ action: 'login', correo: usuarioActual.correo, dni: usuarioActual.dni }, function(refreshRes) {
+            if (refreshRes.success) {
+              renderCapacitaciones(refreshRes.capacitaciones);
+            }
+          });
+
         } else {
-          errorMsg.style.color = "var(--danger)";
-          errorMsg.innerText = res.message || "Error al guardar el resultado.";
+          document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res.message}</div>`;
         }
-      } catch (err) {
-        errorMsg.style.color = "var(--danger)";
-        errorMsg.innerText = "Error de conexión al guardar el resultado.";
-      }
+      });
     }
   </script>
 </body>
