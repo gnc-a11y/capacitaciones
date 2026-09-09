@@ -278,32 +278,28 @@
     let capacitacionSeleccionada = null;
     let preguntasExamenActual = [];
 
-    function pedirJSONP(params, callbackPrefix) {
+    // Función JSONP Dinámica y segura
+    function pedirJSONP(params) {
       return new Promise((resolve, reject) => {
-        const callbackFn = callbackPrefix + '_' + Math.round(100000 * Math.random());
+        const callbackName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        const script = document.createElement('script');
         
-        window[callbackFn] = function(data) {
-          delete window[callbackFn];
-          const scriptElem = document.getElementById(callbackFn);
-          if (scriptElem) scriptElem.remove();
+        window[callbackName] = function(data) {
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
           resolve(data);
         };
 
-        let queryString = Object.keys(params)
-          .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
-          .join('&');
-
-        const script = document.createElement('script');
-        script.id = callbackFn;
-        script.src = `${URL_WEB_APP}?${queryString}&callback=${callbackFn}`;
-        
         script.onerror = function() {
-          delete window[callbackFn];
-          const scriptElem = document.getElementById(callbackFn);
-          if (scriptElem) scriptElem.remove();
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
           reject(new Error("Error de conexión al servidor."));
         };
 
+        const queryParams = new URLSearchParams(params);
+        queryParams.append('callback', callbackName);
+
+        script.src = `${URL_WEB_APP}?${queryParams.toString()}`;
         document.body.appendChild(script);
       });
     }
@@ -328,7 +324,7 @@
           action: "login",
           correo: correo,
           dni: dni
-        }, "cb_login");
+        });
 
         if (res.success) {
           usuarioActual.legajo = res.legajo;
@@ -453,7 +449,7 @@
           fileId: fileId,
           legajo: usuarioActual.legajo,
           titulo: titulo
-        }, "cb_examen");
+        });
 
         if (res.success && res.preguntas) {
           preguntasExamenActual = res.preguntas;
@@ -538,7 +534,7 @@
           nombre: usuarioActual.nombre,
           capacitacion: capacitacionSeleccionada.titulo,
           nota: notaFinal
-        }, "cb_guardar");
+        });
 
         if (res.success) {
           alert(`Examen finalizado.\nPuntaje obtenido: ${notaFinal}/100\nEstado: ${res.estado}`);
