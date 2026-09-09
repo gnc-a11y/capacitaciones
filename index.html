@@ -272,14 +272,14 @@
   </main>
 
   <script>
-    // URL Web App limpia sin corchetes
-    const URL_WEB_APP = "[https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec](https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec)";
+    // URL limpia sin corchetes
+    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
 
     let usuarioActual = { legajo: "", nombre: "" };
     let capacitacionSeleccionada = null;
     let preguntasExamenActual = [];
 
-    // Función JSONP con construcción de URL corregida
+    // Lógica JSONP corregida y sin corchetes
     function pedirJSONP(params) {
       return new Promise((resolve, reject) => {
         const callbackName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -310,6 +310,7 @@
         queryParams.append('callback', callbackName);
         queryParams.append('_ts', Date.now());
 
+        // Concatenación limpia de la URL
         script.src = URL_WEB_APP + '?' + queryParams.toString();
         document.body.appendChild(script);
       });
@@ -405,7 +406,7 @@
       if (!url) return "";
       let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (youtubeMatch && youtubeMatch[1]) {
-        return `[https://www.youtube.com/embed/$](https://www.youtube.com/embed/$){youtubeMatch[1]}?autoplay=1`;
+        return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
       }
       return url;
     }
