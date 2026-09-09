@@ -269,7 +269,7 @@
       document.getElementById("materialSection").classList.remove("hidden");
       document.getElementById("materialTitulo").innerText = titulo;
 
-      // Transformar enlaces si son de YouTube o Google Drive Preview
+      // Transformar la URL para visualización según su origen
       if (urlDrive.includes("youtube.com/watch?v=")) {
         urlDrive = urlDrive.replace("watch?v=", "embed/");
       } else if (urlDrive.includes("youtu.be/")) {
