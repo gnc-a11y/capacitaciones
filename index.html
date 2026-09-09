@@ -63,7 +63,7 @@
     .cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 10px; }
     .cap-card { background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm); }
     .cap-title { font-weight: 700; margin-bottom: 8px; color: var(--text-primary); font-size: 1.1rem; }
-    .cap-desc { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; }
+    .cap-desc { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 16px; word-break: break-word; }
 
     .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 16px; }
     .badge-approved { background-color: var(--success-light); color: var(--success); }
@@ -239,15 +239,22 @@
           ? `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">📄 Descargar Certificado</a>` 
           : "";
 
-        // Detectar si la URL viene bajo urlDrive, url, o link
-        const urlMaterial = cap.urlDrive || cap.url || cap.link || "";
+        // Si la URL viene dentro del texto de la descripción, la extraemos limpiamente
+        let urlMaterial = cap.urlDrive || "";
+        let descripcionLimpia = cap.descripcion || "";
+
+        const matchUrl = descripcionLimpia.match(/https?:\/\/[^\s]+/);
+        if (matchUrl) {
+          if (!urlMaterial) urlMaterial = matchUrl[0];
+          descripcionLimpia = descripcionLimpia.replace(matchUrl[0], "").trim();
+        }
 
         const card = document.createElement("div");
         card.className = "cap-card";
         card.innerHTML = `
           <div>
             <div class="cap-title">${cap.titulo}</div>
-            <div class="cap-desc">${cap.descripcion || ""}</div>
+            <div class="cap-desc">${descripcionLimpia}</div>
             ${badgeHtml}
           </div>
           <div style="margin-top:12px;">
@@ -274,24 +281,20 @@
 
       const viewerBox = document.getElementById("viewerBox");
 
-      // Validar si existe enlace válido
       if (!urlDrive || urlDrive === "undefined" || urlDrive.trim() === "") {
         viewerBox.innerHTML = `<div style="padding: 40px; text-align: center; color: white;">
-          <h3>No se ha adjuntado un enlace válido para este material.</h3>
-          <p style="margin-top: 10px; color: #cbd5e1;">Asegúrate de configurar la URL en la hoja de cálculo.</p>
+          <h3>No hay un enlace configurado para esta capacitación.</h3>
         </div>`;
         return;
       }
 
-      // Transformación inteligente de URLs para incrustar en Iframe
+      // Transformar URLs para visualización directa en visor iframe
       if (urlDrive.includes("drive.google.com")) {
-        if (urlDrive.includes("/view")) {
+        const match = urlDrive.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+          urlDrive = `https://drive.google.com/file/d/${match[1]}/preview`;
+        } else if (urlDrive.includes("/view")) {
           urlDrive = urlDrive.replace("/view", "/preview");
-        } else if (!urlDrive.includes("/preview")) {
-          const match = urlDrive.match(/d\/([a-zA-Z0-9_-]+)/);
-          if (match && match[1]) {
-            urlDrive = `https://drive.google.com/file/d/${match[1]}/preview`;
-          }
         }
       } else if (urlDrive.includes("youtube.com/watch?v=")) {
         urlDrive = urlDrive.replace("watch?v=", "embed/");
@@ -335,8 +338,6 @@
       try {
         const res = await pedirJSONP({
           action: "generarExamen",
-          fileId: titulo,
-          legajo: usuarioActual.legajo,
           titulo: titulo
         });
 
