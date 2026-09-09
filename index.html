@@ -142,29 +142,46 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // URL del Web App de Apps Script (Asegúrate de colocar tu URL pública aquí)
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwO4rEexO8o4mKjC4I1vO-_T27o84RzT99N1V8N-P3N19K5C5P3N19/exec"; // Reemplaza por tu URL ejecutoria
+    // URL ejecutoria de Apps Script vinculada
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
 
     let usuarioActual = null;
     let preguntasActuales = [];
     let capacitacionActual = null;
 
-    // Petición JSONP para evitar bloqueos por CORS
+    // Conexión mediante JSONP con manejo de timeout
     function callGAS(params, callback) {
       const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
+      let script = document.createElement('script');
+      let timeoutId;
+
       window[callbackName] = function(data) {
+        clearTimeout(timeoutId);
         delete window[callbackName];
-        document.body.removeChild(script);
+        if (script.parentNode) script.parentNode.removeChild(script);
         callback(data);
       };
+
+      timeoutId = setTimeout(function() {
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        callback({ success: false, message: "Tiempo de espera agotado. Verifique los datos o vuelva a intentarlo." });
+      }, 10000);
 
       params.callback = callbackName;
       const query = Object.keys(params)
         .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
         .join('&');
 
-      const script = document.createElement('script');
       script.src = SCRIPT_URL + '?' + query;
+      
+      script.onerror = function() {
+        clearTimeout(timeoutId);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        callback({ success: false, message: "Error al conectar con el servidor." });
+      };
+
       document.body.appendChild(script);
     }
 
@@ -184,20 +201,20 @@
         btn.disabled = false;
         btn.innerText = "Ingresar";
 
-        if (res.success) {
+        if (res && res.success) {
           usuarioActual = res;
           document.getElementById('usuarioInfo').innerText = `${res.nombre} (Legajo: ${res.legajo})`;
           document.getElementById('vistaLogin').classList.add('d-none');
           document.getElementById('vistaCapacitaciones').classList.remove('d-none');
           renderCapacitaciones(res.capacitaciones);
         } else {
-          errDiv.innerText = res.message || "Credenciales inválidas.";
+          errDiv.innerText = (res && res.message) ? res.message : "Usuario no encontrado. Verifique correo y DNI.";
           errDiv.classList.remove('d-none');
         }
       });
     });
 
-    // Renderizar Capacitaciones
+    // Renderizado de capacitaciones
     function renderCapacitaciones(lista) {
       const cont = document.getElementById('listaCapacitaciones');
       cont.innerHTML = '';
@@ -266,11 +283,11 @@
       modalExamen.show();
 
       callGAS({ action: 'generarExamen', titulo: titulo }, function(res) {
-        if (res.success) {
+        if (res && res.success) {
           preguntasActuales = res.preguntas;
           renderPreguntas(res.preguntas);
         } else {
-          document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res.message}</div>`;
+          document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al cargar preguntas.'}</div>`;
           document.getElementById('footerExamen').classList.add('d-none');
         }
       });
@@ -304,7 +321,7 @@
       document.getElementById('cuerpoExamen').innerHTML = html;
     }
 
-    // Evaluar y Guardar Resultado
+    // Evaluar Examen y Registrar Resultado
     function evaluarExamen() {
       let correctasContador = 0;
 
@@ -322,7 +339,6 @@
           if (checked) seleccionadas.push(checked.value);
         }
 
-        // Comparación de respuestas
         seleccionadas.sort();
         const correctas = [...p.correctas].sort();
         if (JSON.stringify(seleccionadas) === JSON.stringify(correctas)) {
@@ -330,13 +346,12 @@
         }
       });
 
-      // Cálculo de Nota sobre 100%
       const nota = Math.round((correctasContador / preguntasActuales.length) * 100);
 
       document.getElementById('cuerpoExamen').innerHTML = `
         <div class="text-center py-5">
           <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Procesando y guardando calificación...</p>
+          <p class="mt-2 text-muted">Procesando resultado y generando certificado...</p>
         </div>`;
       document.getElementById('footerExamen').classList.add('d-none');
 
@@ -347,7 +362,7 @@
         capacitacion: capacitacionActual,
         nota: nota
       }, function(res) {
-        if (res.success) {
+        if (res && res.success) {
           const aprobado = res.estado === "Aprobado";
           let alertClass = aprobado ? "alert-success" : "alert-danger";
           let tituloRes = aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada";
@@ -355,7 +370,7 @@
           let htmlRes = `
             <div class="alert ${alertClass} text-center p-4">
               <h4>${tituloRes}</h4>
-              <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo requerido: 60%)</p>`;
+              <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo para aprobar: 60%)</p>`;
 
           if (aprobado && res.urlCertificado) {
             htmlRes += `
@@ -369,15 +384,15 @@
           htmlRes += `</div>`;
           document.getElementById('cuerpoExamen').innerHTML = htmlRes;
 
-          // Recargar capacitaciones para refrescar botones e intentos
+          // Refrescar tarjetas
           callGAS({ action: 'login', correo: usuarioActual.correo, dni: usuarioActual.dni }, function(refreshRes) {
-            if (refreshRes.success) {
+            if (refreshRes && refreshRes.success) {
               renderCapacitaciones(refreshRes.capacitaciones);
             }
           });
 
         } else {
-          document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res.message}</div>`;
+          document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al guardar resultado.'}</div>`;
         }
       });
     }
