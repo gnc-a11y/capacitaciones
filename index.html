@@ -298,7 +298,7 @@
   </main>
 
   <script>
-    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec;(https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec)";
+    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
 
     let usuarioActual = { legajo: "", nombre: "", correo: "" };
     let capacitacionSeleccionada = null;
@@ -401,10 +401,10 @@
           badgeHtml = `<span class="badge badge-approved">Aprobado</span>`;
           if (cap.urlCertificado) {
             certBtnHtml = `
-              <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success">
+              <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success" style="margin-top:8px;">
                 📄 Descargar Certificado (PDF)
               </a>
-              <button class="btn btn-secondary" onclick="reenviarPorEmail('${encodeURIComponent(cap.titulo)}')">
+              <button class="btn btn-secondary" style="margin-top:6px;" onclick="reenviarPorEmail('${encodeURIComponent(cap.titulo)}')">
                 ✉️ Recibir por Correo
               </button>
             `;
@@ -424,11 +424,11 @@
             <div class="cap-desc">${cap.descripcion}</div>
             ${badgeHtml}
           </div>
-          <div>
+          <div style="margin-top:10px;">
             <button class="btn btn-secondary" onclick="verMaterial('${cap.fileId}', '${encodeURIComponent(cap.titulo)}', '${encodeURIComponent(cap.urlDrive)}')">
               Ver Contenido
             </button>
-            <button class="btn" ${btnDisabled} onclick="iniciarExamen('${cap.fileId}', '${encodeURIComponent(cap.titulo)}')">
+            <button class="btn" ${btnDisabled} style="margin-top:6px;" onclick="iniciarExamen('${cap.fileId}', '${encodeURIComponent(cap.titulo)}')">
               ${cap.aprobado ? "Rendir Nuevamente" : "Rendir Examen"}
             </button>
             ${certBtnHtml}
@@ -464,7 +464,7 @@
       if (!url) return "";
       let youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       if (youtubeMatch && youtubeMatch[1]) {
-        return `[https://www.youtube.com/embed/$](https://www.youtube.com/embed/$){youtubeMatch[1]}?autoplay=1`;
+        return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
       }
       return url;
     }
