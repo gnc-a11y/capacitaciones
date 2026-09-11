@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Prevención de almacenamiento en caché del navegador -->
+  <!-- Directivas Anti-Cache -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -86,7 +86,7 @@
           <form id="formLogin">
             <div class="mb-3">
               <label class="form-label fw-semibold">Usuario</label>
-              <input type="text" id="loginUsuario" class="form-control" placeholder="Ingrese su usuario" required autocomplete="off">
+              <input type="text" id="loginUsuario" class="form-control" placeholder="Ingrese su usuario" required autocomplete="off" capitalize="none">
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Número de DNI</label>
@@ -157,7 +157,7 @@
     let preguntasActuales = [];
     let capacitacionActual = null;
 
-    // Limpieza de caché del navegador
+    // Purga de almacenamiento local y caché
     async function limpiarCacheNavegador() {
       try {
         localStorage.clear();
@@ -166,24 +166,45 @@
           const keys = await caches.keys();
           await Promise.all(keys.map(key => caches.delete(key)));
         }
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (let registration of registrations) {
-            await registration.unregister();
-          }
-        }
       } catch (err) {
         console.warn("Limpia parcial de caché:", err);
       }
     }
 
-    // Ejecutar verificación y purga al iniciar
     window.addEventListener('DOMContentLoaded', () => {
       limpiarCacheNavegador();
     });
 
-    // Conexión JSONP con parámetro anti-cache y tiempo de espera de 30s
-    function callGAS(params, callback) {
+    // Conexión híbrida con compatibilidad total para redes móviles
+    async function callGAS(params, callback) {
+      const query = Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+        .join('&');
+
+      const url = SCRIPT_URL + '?' + query;
+
+      // Método 1: Fetch estándar con seguimiento de redirección
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        const response = await fetch(url, {
+          method: 'GET',
+          redirect: 'follow',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          callback(data);
+          return;
+        }
+      } catch (e) {
+        console.warn("Fetch directo no soportado o bloqueado por CORS móvil, intentando fallback JSONP...", e);
+      }
+
+      // Método 2: JSONP Fallback seguro para móviles
       const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
       let script = document.createElement('script');
       let timeoutId;
@@ -195,33 +216,26 @@
         callback(data);
       };
 
-      // Límite ajustado a 30.000 ms (30 segundos)
       timeoutId = setTimeout(function() {
         delete window[callbackName];
         if (script.parentNode) script.parentNode.removeChild(script);
-        callback({ success: false, message: "Tiempo de espera agotado. Verifique los datos o vuelva a intentarlo." });
+        callback({ success: false, message: "Tiempo de espera agotado. Revisa tu conexión a internet o intenta nuevamente." });
       }, 30000);
 
-      params.callback = callbackName;
-      params._nocache = new Date().getTime();
+      const jsonpQuery = query + '&callback=' + callbackName;
+      script.src = SCRIPT_URL + '?' + jsonpQuery;
 
-      const query = Object.keys(params)
-        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
-        .join('&');
-
-      script.src = SCRIPT_URL + '?' + query;
-      
       script.onerror = function() {
         clearTimeout(timeoutId);
         delete window[callbackName];
         if (script.parentNode) script.parentNode.removeChild(script);
-        callback({ success: false, message: "Error al conectar con el servidor." });
+        callback({ success: false, message: "Error al conectar con el servidor. Revisa los datos de ingreso o tu señal de red." });
       };
 
       document.body.appendChild(script);
     }
 
-    // Login mediante Usuario y DNI
+    // Login
     document.getElementById('formLogin').addEventListener('submit', function(e) {
       e.preventDefault();
       const usuario = document.getElementById('loginUsuario').value.trim();
@@ -251,7 +265,7 @@
       });
     });
 
-    // Cierre de Sesión y Purga
+    // Cierre de Sesión
     async function cerrarSesion() {
       await limpiarCacheNavegador();
       usuarioActual = null;
