@@ -182,7 +182,7 @@
       limpiarCacheNavegador();
     });
 
-    // Conexión JSONP con parámetro anti-cache (Timestamp)
+    // Conexión JSONP con parámetro anti-cache y tiempo de espera de 30s
     function callGAS(params, callback) {
       const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
       let script = document.createElement('script');
@@ -195,14 +195,15 @@
         callback(data);
       };
 
+      // Límite ajustado a 30.000 ms (30 segundos)
       timeoutId = setTimeout(function() {
         delete window[callbackName];
         if (script.parentNode) script.parentNode.removeChild(script);
         callback({ success: false, message: "Tiempo de espera agotado. Verifique los datos o vuelva a intentarlo." });
-      }, 10000);
+      }, 30000);
 
       params.callback = callbackName;
-      params._nocache = new Date().getTime(); // Fuerza llamada fresca al servidor
+      params._nocache = new Date().getTime();
 
       const query = Object.keys(params)
         .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
@@ -263,7 +264,6 @@
       document.getElementById('vistaCapacitaciones').classList.add('d-none');
       document.getElementById('vistaLogin').classList.remove('d-none');
       
-      // Recarga forzada desde el servidor omitiendo caché de Chrome
       window.location.reload(true);
     }
 
