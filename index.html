@@ -107,7 +107,7 @@
 
   </div>
 
-  <!-- Modal Contenido -->
+  <!-- Modal Contenido con Video de YouTube -->
   <div class="modal fade" id="modalContenido" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
@@ -115,11 +115,13 @@
           <h5 class="modal-title" id="tituloContenido">Material de Capacitación</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body text-center p-4">
-          <p class="text-muted mb-4">Asegúrese de revisar todo el material atentamente antes de rendir la evaluación.</p>
-          <a id="btnLinkDrive" href="#" target="_blank" class="btn btn-outline-primary btn-lg fw-bold">
-            📁 Abrir Material en Google Drive
-          </a>
+        <div class="modal-body p-4 text-center">
+          <p class="text-muted mb-3">Asegúrese de revisar todo el material atentamente antes de rendir la evaluación.</p>
+          
+          <!-- Contenedor del Video -->
+          <div class="ratio ratio-16x9 shadow-sm rounded overflow-hidden">
+            <iframe id="iframeVideo" src="" title="Video de Capacitación" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
         </div>
       </div>
     </div>
@@ -173,6 +175,14 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       limpiarCacheNavegador();
+
+      // Detener el video cuando el modal se cierra
+      const modalContenidoEl = document.getElementById('modalContenido');
+      if (modalContenidoEl) {
+        modalContenidoEl.addEventListener('hidden.bs.modal', function () {
+          document.getElementById('iframeVideo').src = '';
+        });
+      }
     });
 
     // Conexión híbrida con compatibilidad total para redes móviles
@@ -318,7 +328,7 @@
               <div class="mb-3">${badgeEstado}</div>
             </div>
             <div>
-              <button class="btn btn-outline-secondary w-100 mb-2" onclick="verContenido('${cap.titulo}', '${cap.urlDrive}')">Ver Contenido</button>
+              <button class="btn btn-outline-secondary w-100 mb-2" onclick="verContenido('${cap.titulo}')">Ver Contenido</button>
               ${botonExamen}
             </div>
           </div>
@@ -327,9 +337,13 @@
       });
     }
 
-    function verContenido(titulo, url) {
+    function verContenido(titulo) {
       document.getElementById('tituloContenido').innerText = titulo;
-      document.getElementById('btnLinkDrive').href = url;
+      
+      // Asigna la URL de reproducción de YouTube
+      const iframe = document.getElementById('iframeVideo');
+      iframe.src = "https://www.youtube.com/embed/jPH_Rq-6nBE?autoplay=1";
+
       new bootstrap.Modal(document.getElementById('modalContenido')).show();
     }
 
