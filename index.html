@@ -270,8 +270,15 @@
           document.getElementById('vistaLogin').classList.add('d-none');
           document.getElementById('vistaVideoIntro').classList.remove('d-none');
           
-          // Asigna e inicia el video de YouTube
-          document.getElementById('iframeVideoIntro').src = "https://www.youtube.com/embed/jPH_Rq-6nBE?autoplay=1";
+          // Toma dinámicamente la URL de la hoja 'youtube' (Celda B2) recibida desde el backend
+          let videoUrl = res.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE";
+          
+          // Agrega parámetro para reproducción automática
+          if (!videoUrl.includes('autoplay=1')) {
+            videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+          }
+          
+          document.getElementById('iframeVideoIntro').src = videoUrl;
           
           renderCapacitaciones(res.capacitaciones);
         } else {
