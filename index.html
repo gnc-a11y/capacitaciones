@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Directivas Anti-Cache -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
   <title>Portal de Capacitaciones S&H</title>
-  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -64,7 +62,6 @@
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header-bar shadow-sm">
     <div class="d-flex align-items-center gap-2">
       <span class="badge bg-primary fs-6">CEEZ</span>
@@ -78,7 +75,6 @@
 
   <div class="container my-5">
 
-    <!-- Vista Login -->
     <div id="vistaLogin" class="row justify-content-center">
       <div class="col-md-5">
         <div class="card card-custom p-4">
@@ -99,7 +95,25 @@
       </div>
     </div>
 
-    <!-- Vista Capacitaciones -->
+    <div id="vistaVideoIntro" class="row justify-content-center d-none">
+      <div class="col-md-9 col-lg-8 text-center">
+        <div class="card card-custom p-4 shadow-sm">
+          <h4 class="fw-bold text-primary mb-2">Bienvenido/a al Portal de Capacitación</h4>
+          <p class="text-muted mb-4">Por favor, mire atentamente el siguiente video antes de continuar a las evaluaciones.</p>
+          
+          <div class="ratio ratio-16x9 rounded overflow-hidden shadow-sm mb-4">
+            <iframe id="iframeVideoIntro" src="" title="Video de Capacitación CEEZ" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
+
+          <div class="d-flex justify-content-center">
+            <button id="btnContinuar" class="btn btn-success btn-lg fw-bold px-5 py-2 shadow-sm" onclick="mostrarCapacitaciones()">
+              Continuar a las Capacitaciones ➔
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="vistaCapacitaciones" class="d-none">
       <h3 class="text-center fw-bold mb-4 text-dark">Capacitaciones Disponibles</h3>
       <div id="listaCapacitaciones" class="row g-4 justify-content-center"></div>
@@ -107,7 +121,6 @@
 
   </div>
 
-  <!-- Modal Contenido con Video de YouTube -->
   <div class="modal fade" id="modalContenido" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
@@ -115,19 +128,16 @@
           <h5 class="modal-title" id="tituloContenido">Material de Capacitación</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body p-4 text-center">
-          <p class="text-muted mb-3">Asegúrese de revisar todo el material atentamente antes de rendir la evaluación.</p>
-          
-          <!-- Contenedor del Video -->
-          <div class="ratio ratio-16x9 shadow-sm rounded overflow-hidden">
-            <iframe id="iframeVideo" src="" title="Video de Capacitación" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-          </div>
+        <div class="modal-body text-center p-4">
+          <p class="text-muted mb-4">Asegúrese de revisar todo el material atentamente antes de rendir la evaluación.</p>
+          <a id="btnLinkDrive" href="#" target="_blank" class="btn btn-outline-primary btn-lg fw-bold">
+            📁 Abrir Material en Google Drive (PDF)
+          </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal Examen -->
   <div class="modal fade" id="modalExamen" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
@@ -149,7 +159,6 @@
     </div>
   </div>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
@@ -175,17 +184,9 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       limpiarCacheNavegador();
-
-      // Detener el video cuando el modal se cierra
-      const modalContenidoEl = document.getElementById('modalContenido');
-      if (modalContenidoEl) {
-        modalContenidoEl.addEventListener('hidden.bs.modal', function () {
-          document.getElementById('iframeVideo').src = '';
-        });
-      }
     });
 
-    // Conexión híbrida con compatibilidad total para redes móviles
+    // Conexión con Apps Script (GAS)
     async function callGAS(params, callback) {
       const query = Object.keys(params)
         .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
@@ -193,7 +194,6 @@
 
       const url = SCRIPT_URL + '?' + query;
 
-      // Método 1: Fetch estándar con seguimiento de redirección
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -211,10 +211,10 @@
           return;
         }
       } catch (e) {
-        console.warn("Fetch directo no soportado o bloqueado por CORS móvil, intentando fallback JSONP...", e);
+        console.warn("Fetch directo no soportado, intentando fallback JSONP...", e);
       }
 
-      // Método 2: JSONP Fallback seguro para móviles
+      // JSONP Fallback
       const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
       let script = document.createElement('script');
       let timeoutId;
@@ -239,7 +239,7 @@
         clearTimeout(timeoutId);
         delete window[callbackName];
         if (script.parentNode) script.parentNode.removeChild(script);
-        callback({ success: false, message: "Error al conectar con el servidor. Revisa los datos de ingreso o tu señal de red." });
+        callback({ success: false, message: "Error al conectar con el servidor." });
       };
 
       document.body.appendChild(script);
@@ -265,8 +265,14 @@
           usuarioActual = res;
           document.getElementById('usuarioInfo').innerText = `${res.nombre} (Legajo: ${res.legajo})`;
           document.getElementById('btnCerrarSesion').classList.remove('d-none');
+          
+          // Ocultar login y mostrar vista con el video introductorio
           document.getElementById('vistaLogin').classList.add('d-none');
-          document.getElementById('vistaCapacitaciones').classList.remove('d-none');
+          document.getElementById('vistaVideoIntro').classList.remove('d-none');
+          
+          // Asigna e inicia el video de YouTube
+          document.getElementById('iframeVideoIntro').src = "https://www.youtube.com/embed/jPH_Rq-6nBE?autoplay=1";
+          
           renderCapacitaciones(res.capacitaciones);
         } else {
           errDiv.innerText = (res && res.message) ? res.message : "Usuario o DNI incorrectos.";
@@ -275,6 +281,16 @@
       });
     });
 
+    // Función para pasar del video a las capacitaciones
+    function mostrarCapacitaciones() {
+      // Pausa el video quitándole la URL
+      document.getElementById('iframeVideoIntro').src = "";
+      
+      // Oculta el video y muestra la lista de capacitaciones
+      document.getElementById('vistaVideoIntro').classList.add('d-none');
+      document.getElementById('vistaCapacitaciones').classList.remove('d-none');
+    }
+
     // Cierre de Sesión
     async function cerrarSesion() {
       await limpiarCacheNavegador();
@@ -282,9 +298,11 @@
       preguntasActuales = [];
       capacitacionActual = null;
       
+      document.getElementById('iframeVideoIntro').src = "";
       document.getElementById('formLogin').reset();
       document.getElementById('usuarioInfo').innerText = '';
       document.getElementById('btnCerrarSesion').classList.add('d-none');
+      document.getElementById('vistaVideoIntro').classList.add('d-none');
       document.getElementById('vistaCapacitaciones').classList.add('d-none');
       document.getElementById('vistaLogin').classList.remove('d-none');
       
@@ -328,7 +346,7 @@
               <div class="mb-3">${badgeEstado}</div>
             </div>
             <div>
-              <button class="btn btn-outline-secondary w-100 mb-2" onclick="verContenido('${cap.titulo}')">Ver Contenido</button>
+              <button class="btn btn-outline-secondary w-100 mb-2" onclick="verContenido('${cap.titulo}', '${cap.urlDrive}')">Ver Material (PDF)</button>
               ${botonExamen}
             </div>
           </div>
@@ -337,13 +355,9 @@
       });
     }
 
-    function verContenido(titulo) {
+    function verContenido(titulo, url) {
       document.getElementById('tituloContenido').innerText = titulo;
-      
-      // Asigna la URL de reproducción de YouTube
-      const iframe = document.getElementById('iframeVideo');
-      iframe.src = "https://www.youtube.com/embed/jPH_Rq-6nBE?autoplay=1";
-
+      document.getElementById('btnLinkDrive').href = url;
       new bootstrap.Modal(document.getElementById('modalContenido')).show();
     }
 
