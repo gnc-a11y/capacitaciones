@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <title>Portal de Capacitaciones S&H</title>
+  <title>Portal Interno CEEZ - Capacitaciones y Licencias</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -18,95 +17,115 @@
     .header-bar {
       background-color: #ffffff;
       border-bottom: 1px solid #e2e8f0;
-      padding: 12px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 12px 20px;
     }
     .card-custom {
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-      transition: transform 0.2s, box-shadow 0.2s;
       background: #ffffff;
     }
-    .card-custom:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    .badge-status { font-size: 0.82rem; padding: 6px 12px; border-radius: 20px; }
+    .badge-aprobado { background-color: #d1fae5; color: #065f46; }
+    .badge-intentos { background-color: #fef3c7; color: #92400e; }
+    .badge-bloqueado { background-color: #fee2e2; color: #991b1b; }
+    .modal-header { background-color: #1e3a8a; color: white; }
+    .btn-close-white { filter: invert(1); }
+    .nav-pills .nav-link.active { background-color: #1e3a8a; font-weight: 600; }
+    .nav-pills .nav-link { color: #334155; font-weight: 500; border: 1px solid #cbd5e1; margin-right: 6px; background: #fff; }
+    .caja-vacaciones {
+      background-color: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px;
     }
-    .badge-status {
+    .alerta-superposicion {
+      background-color: #fff7ed;
+      border-left: 4px solid #ea580c;
+      color: #9a3412;
+      padding: 8px 12px;
+      border-radius: 6px;
       font-size: 0.85rem;
-      padding: 6px 12px;
-      border-radius: 20px;
-    }
-    .badge-aprobado {
-      background-color: #d1fae5;
-      color: #065f46;
-    }
-    .badge-intentos {
-      background-color: #fef3c7;
-      color: #92400e;
-    }
-    .badge-bloqueado {
-      background-color: #fee2e2;
-      color: #991b1b;
-    }
-    .modal-header {
-      background-color: #1e3a8a;
-      color: white;
-    }
-    .btn-close-white {
-      filter: invert(1);
     }
   </style>
 </head>
 <body>
 
+  <!-- BARRA SUPERIOR -->
   <div class="header-bar shadow-sm">
-    <div class="d-flex align-items-center gap-2">
-      <span class="badge bg-primary fs-6">CEEZ</span>
-      <h5 class="m-0 fw-bold text-dark">Portal de Capacitaciones</h5>
-    </div>
-    <div class="d-flex align-items-center gap-3">
-      <div id="usuarioInfo" class="text-muted fw-semibold small"></div>
-      <button id="btnCerrarSesion" class="btn btn-outline-danger btn-sm d-none" onclick="cerrarSesion()">Cerrar Sesión</button>
+    <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary fs-6">CEEZ</span>
+        <h5 class="m-0 fw-bold text-dark">Portal de Gestión Interna</h5>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <div id="usuarioInfo" class="text-muted fw-semibold small me-2"></div>
+        <button id="btnAbrirCambioClave" class="btn btn-outline-secondary btn-sm d-none" data-bs-toggle="modal" data-bs-target="#modalCambiarClave">🔑 Cambiar Clave</button>
+        <button id="btnCerrarSesion" class="btn btn-outline-danger btn-sm d-none" onclick="cerrarSesion()">Cerrar Sesión</button>
+      </div>
     </div>
   </div>
 
-  <div class="container my-5">
+  <div class="container my-4">
 
-    <div id="vistaLogin" class="row justify-content-center">
-      <div class="col-md-5">
+    <!-- 1. VISTA LOGIN -->
+    <div id="vistaLogin" class="row justify-content-center mt-4">
+      <div class="col-12 col-sm-9 col-md-6 col-lg-5">
         <div class="card card-custom p-4">
-          <h4 class="text-center fw-bold mb-4 text-primary">Ingreso al Portal</h4>
+          <h4 class="text-center fw-bold mb-1 text-primary">Ingreso al Portal</h4>
+          <p class="text-center text-muted small mb-4">Capacitaciones y Gestión de Licencias CEEZ</p>
+          
           <form id="formLogin">
             <div class="mb-3">
               <label class="form-label fw-semibold">Usuario</label>
-              <input type="text" id="loginUsuario" class="form-control" placeholder="Ingrese su usuario" required autocomplete="off" capitalize="none">
+              <input type="text" id="loginUsuario" class="form-control" placeholder="Ingrese su usuario" required autocomplete="off" autocapitalize="none">
             </div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">Número de DNI</label>
-              <input type="number" id="loginDni" class="form-control" placeholder="Ingrese su DNI" required autocomplete="off">
+              <label class="form-label fw-semibold">Clave (DNI por defecto)</label>
+              <input type="password" id="loginClave" class="form-control" placeholder="Ingrese su clave o DNI" required autocomplete="off">
             </div>
             <button type="submit" id="btnIngresar" class="btn btn-primary w-100 fw-bold py-2">Ingresar</button>
           </form>
+
+          <div class="text-center mt-3">
+            <a href="#" class="small text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalCambiarClave">¿Querés cambiar tu contraseña?</a>
+          </div>
           <div id="loginError" class="alert alert-danger mt-3 d-none" role="alert"></div>
         </div>
       </div>
     </div>
 
+    <!-- BARRA DE PESTAÑAS POST-LOGIN -->
+    <div id="barraNavegacion" class="d-none mb-4">
+      <div id="alertaClaveDefecto" class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 d-none">
+        <span>⚠️ Estás usando tu DNI como clave por defecto. Por privacidad, te recomendamos cambiarla.</span>
+        <button class="btn btn-sm btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#modalCambiarClave">Cambiar ahora</button>
+      </div>
+
+      <ul class="nav nav-pills justify-content-center mb-3">
+        <li class="nav-item">
+          <button class="nav-link active" id="tabCapacitaciones" onclick="cambiarPestana('capacitaciones')">📚 Capacitaciones</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link position-relative" id="tabPermisos" onclick="cambiarPestana('permisos')">
+            📋 Permisos y Vacaciones
+            <span id="badgeNotificacionPermisos" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 2. VISTA VIDEO INTRO -->
     <div id="vistaVideoIntro" class="row justify-content-center d-none">
       <div class="col-md-9 col-lg-8 text-center">
         <div class="card card-custom p-4 shadow-sm">
           <h4 class="fw-bold text-primary mb-2">Bienvenido/a al Portal de Capacitación</h4>
           <p class="text-muted mb-4">Por favor, mire atentamente el siguiente video antes de continuar a las evaluaciones.</p>
-          
           <div class="ratio ratio-16x9 rounded overflow-hidden shadow-sm mb-4">
             <iframe id="iframeVideoIntro" src="" title="Video de Capacitación CEEZ" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
           </div>
-
           <div class="d-flex justify-content-center">
-            <button id="btnContinuar" class="btn btn-success btn-lg fw-bold px-5 py-2 shadow-sm" onclick="mostrarCapacitaciones()">
+            <button class="btn btn-success btn-lg fw-bold px-4 py-2 shadow-sm" onclick="mostrarCapacitaciones()">
               Continuar a las Capacitaciones ➔
             </button>
           </div>
@@ -114,25 +133,277 @@
       </div>
     </div>
 
+    <!-- 3. VISTA CAPACITACIONES -->
     <div id="vistaCapacitaciones" class="d-none">
-      <h3 class="text-center fw-bold mb-4 text-dark">Capacitaciones Disponibles</h3>
+      <h4 class="text-center fw-bold mb-4 text-dark">Capacitaciones Disponibles</h4>
       <div id="listaCapacitaciones" class="row g-4 justify-content-center"></div>
+    </div>
+
+    <!-- 4. VISTA PERMISOS Y VACACIONES -->
+    <div id="vistaPermisos" class="d-none">
+      <div id="alertaPendientesSuperior" class="alert alert-danger fw-semibold d-none"></div>
+
+      <div class="row g-4">
+        <!-- FORMULARIO DE SOLICITUD -->
+        <div class="col-12 col-lg-5" id="bloqueFormularioPermiso">
+          <div class="card card-custom p-4">
+            <div class="mb-2">
+              <h5 class="fw-bold text-primary mb-1">Solicitar Permiso / Licencia</h5>
+              <div class="d-flex flex-wrap gap-1">
+                <span id="badgeConvenioUsuario" class="badge bg-info text-dark">CCT</span>
+                <span id="badgeModalidadDias" class="badge bg-secondary">Cómputo</span>
+              </div>
+            </div>
+
+            <form id="formPermiso" class="mt-3">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Tipo de Licencia / Permiso</label>
+                <select id="permisoTipo" class="form-select" required onchange="actualizarInfoPermiso()">
+                  <option value="">Seleccione un motivo...</option>
+                </select>
+                <div id="infoReglaPermiso" class="form-text text-primary fw-semibold mt-1"></div>
+              </div>
+
+              <!-- SALDO DE VACACIONES -->
+              <div id="panelSaldoVacaciones" class="caja-vacaciones mb-3 d-none">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-success">🏖️ Días de Vacaciones Pendientes:</span>
+                  <span id="textoSaldoDias" class="badge bg-success fs-6">0 días</span>
+                </div>
+                <div id="subtextoModalidadVac" class="small text-muted mt-1"></div>
+              </div>
+
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <label class="form-label fw-semibold">Desde</label>
+                  <input type="date" id="permisoDesde" class="form-control" required onchange="calcularDiasPermiso()">
+                </div>
+                <div class="col-6">
+                  <label class="form-label fw-semibold">Hasta</label>
+                  <input type="date" id="permisoHasta" class="form-control" required onchange="calcularDiasPermiso()">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Cantidad de Días Computados</label>
+                <input type="number" id="permisoDias" class="form-control fw-bold bg-light" min="1" readonly required>
+                <div id="desgloseCalculoDias" class="form-text text-dark mt-1"></div>
+                <div id="errorSaldoExcedido" class="alert alert-danger py-2 px-3 small mt-2 d-none"></div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Observaciones / Detalle</label>
+                <textarea id="permisoMotivo" class="form-control" rows="2" placeholder="Opcional: aclaraciones para tu superior..."></textarea>
+              </div>
+
+              <div class="p-3 bg-light border rounded mb-3">
+                <p class="small fw-bold text-dark mb-1">🔒 Firma Electrónica de Conformidad</p>
+                <p class="small text-muted mb-2">Por seguridad, reingresá tu usuario y clave para firmar y enviar:</p>
+                <div class="mb-2">
+                  <input type="text" id="firmaUsuario" class="form-control form-control-sm" placeholder="Confirmá tu Usuario" required autocomplete="off" autocapitalize="none">
+                </div>
+                <div>
+                  <input type="password" id="firmaClave" class="form-control form-control-sm" placeholder="Confirmá tu Clave" required autocomplete="off">
+                </div>
+              </div>
+
+              <button type="submit" id="btnEnviarPermiso" class="btn btn-primary w-100 fw-bold">Enviar Solicitud a Aprobación</button>
+            </form>
+            <div id="msgPermiso" class="alert mt-3 d-none"></div>
+          </div>
+        </div>
+
+        <!-- BANDEJAS SEGÚN ROL -->
+        <div class="col-12 col-lg-7" id="bloqueBandejasPermisos">
+
+          <!-- BANDEJA JEFE / GERENTE / DELEGADO -->
+          <div id="seccionBandejaJefe" class="card card-custom p-4 mb-4 d-none border-primary">
+            <h5 class="fw-bold text-primary mb-1">📥 Solicitudes Pendientes de Autorización</h5>
+            <p class="text-muted small mb-3">El sistema detecta automáticamente superposiciones dentro del sector.</p>
+            <div id="listaBandejaJefe"></div>
+          </div>
+
+          <!-- PANEL EXCLUSIVO JEFE DE UNIDAD: DELEGACIÓN HASTA 4 PERSONAS -->
+          <div id="panelDelegacionJefe" class="card card-custom p-4 mb-4 border-dark d-none">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <h5 class="fw-bold text-dark mb-0">👥 Delegación de Aprobación de Permisos</h5>
+              <span id="contadorDelegadosJefe" class="badge bg-dark">0 / 4 activos</span>
+            </div>
+            <p class="text-muted small mb-3">Podés delegar la autorización de pedidos de tu sector hasta a <strong>4 personas</strong> (por vacaciones o secretarias autorizadas) y revocar el acceso en cualquier momento:</p>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-success mb-1">Delegados actualmente habilitados:</label>
+              <div id="listaDelegadosJefeActivos" class="list-group mb-2"></div>
+            </div>
+
+            <div class="border-top pt-3">
+              <label class="form-label small fw-bold text-dark mb-1">Agregar delegado del sector:</label>
+              <input type="text" id="buscadorEmpleadoDelegar" class="form-control form-control-sm mb-2" placeholder="Filtrar por nombre o legajo..." onkeyup="filtrarSelectDelegadosJefe()">
+              <div class="row g-2">
+                <div class="col-8">
+                  <select id="selectCandidatoDelegadoJefe" class="form-select form-select-sm"></select>
+                </div>
+                <div class="col-4">
+                  <button type="button" id="btnAgregarDelegadoJefe" class="btn btn-success btn-sm fw-bold w-100" onclick="habilitarDelegadoJefeDesdeSelect()">+ Habilitar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MÓDULO COMPLETO DE RRHH -->
+          <div id="seccionBandejaRRHH" class="d-none">
+            
+            <!-- PANEL EXCLUSIVO JEFA DE RRHH -->
+            <div id="panelDelegacionJefaRRHH" class="card card-custom p-4 mb-4 border-dark d-none">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <h5 class="fw-bold text-dark mb-0">🔐 Control de Acceso al Módulo RRHH (Exclusivo Jefa)</h5>
+                <span class="badge bg-dark">Titular RRHH</span>
+              </div>
+              <p class="text-muted small mb-3">Habilitá o bloqueá el acceso de los operarios de tu departamento a las funciones completas de RRHH:</p>
+              <div id="listaOperariosDelegacionRRHH" class="list-group"></div>
+            </div>
+
+            <!-- GESTIÓN DE VACACIONES -->
+            <div class="card card-custom p-4 mb-4 border-info">
+              <h5 class="fw-bold text-dark mb-1">🏖️ Saldos de Vacaciones por Empleado (RRHH)</h5>
+              <p class="text-muted small mb-3">Cargá o actualizá los días disponibles de cada empleado según su convenio.</p>
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-semibold">Empleado</label>
+                  <select id="rrhhSelectEmpleado" class="form-select form-select-sm" onchange="cargarSaldoEmpleadoSeleccionado()"></select>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-semibold">Días Pendientes</label>
+                  <input type="number" id="rrhhInputDias" class="form-control form-control-sm" min="0" max="60">
+                </div>
+                <div class="col-6 col-md-3">
+                  <button type="button" id="btnGuardarSaldoRRHH" class="btn btn-info btn-sm fw-bold w-100 text-dark" onclick="guardarSaldoVacacionesRRHH()">💾 Guardar</button>
+                </div>
+              </div>
+              <div id="rrhhMsgSaldo" class="alert alert-success py-1 px-2 small mt-2 d-none"></div>
+            </div>
+
+            <!-- GESTIÓN DE FERIADOS -->
+            <div class="card card-custom p-4 mb-4 border-secondary">
+              <h5 class="fw-bold text-dark mb-1">📅 Calendario de Feriados (Convenios Días Hábiles)</h5>
+              <p class="text-muted small mb-2">Los convenios con días hábiles excluyen automáticamente sábados, domingos y estas fechas:</p>
+              <div class="row g-2 align-items-end mb-2">
+                <div class="col-5">
+                  <input type="date" id="nuevoFeriadoFecha" class="form-control form-control-sm">
+                </div>
+                <div class="col-4">
+                  <input type="text" id="nuevoFeriadoDesc" class="form-control form-control-sm" placeholder="Ej: Feriado Nacional">
+                </div>
+                <div class="col-3">
+                  <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" onclick="agregarFeriadoRRHH()">+ Agregar</button>
+                </div>
+              </div>
+              <div id="listaFeriadosChips" class="d-flex flex-wrap gap-1 mt-2"></div>
+            </div>
+
+            <!-- BANDEJA ÚNICA DE SOLICITUDES APROBADAS Y ARCHIVO RRHH CON BUSCADOR -->
+            <div class="card card-custom p-4 mb-4 border-success">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h5 class="fw-bold text-success mb-0">🗂️ Solicitudes Aprobadas y Archivo (Gestión RRHH)</h5>
+                <input type="text" id="filtroBandejaRRHHInput" class="form-control form-control-sm w-auto" placeholder="Buscar empleado, unidad o trámite..." onkeyup="filtrarBandejaRRHH()">
+              </div>
+              <p class="text-muted small mb-3">Generá la nota PDF para firma manuscrita y consultá los comprobantes adjuntos del personal.</p>
+              <div id="listaBandejaRRHH" style="max-height: 480px; overflow-y: auto;"></div>
+            </div>
+          </div>
+
+          <!-- HISTORIAL PROPIO -->
+          <div class="card card-custom p-4 mb-4" id="seccionMisSolicitudes">
+            <h5 class="fw-bold text-dark mb-1">📄 Mis Solicitudes Realizadas</h5>
+            <p class="text-muted small mb-3">En las licencias que requieren comprobante, podrás subir o reemplazar la foto o PDF desde aquí.</p>
+            <div id="listaMisSolicitudes"></div>
+          </div>
+
+          <!-- HISTORIAL DE SUPERVISIÓN (Solo para Jefes/Delegados/Gerencia que no ven el panel RRHH) -->
+          <div class="card card-custom p-4 d-none border-secondary" id="seccionHistorialSupervision">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+              <h5 class="fw-bold text-dark mb-0">🗄️ Historial del Sector y Consulta de Comprobantes</h5>
+              <input type="text" id="filtroHistorialInput" class="form-control form-control-sm w-auto" placeholder="Buscar empleado, unidad o trámite..." onkeyup="filtrarHistorialSupervision()">
+            </div>
+            <p class="text-muted small mb-3">Consulta permanente de las solicitudes y certificados adjuntos.</p>
+            <div id="listaHistorialSupervision"></div>
+          </div>
+
+        </div>
+      </div>
     </div>
 
   </div>
 
+  <!-- MODAL SUBIR COMPROBANTE (Solo para el solicitante) -->
+  <div class="modal fade" id="modalSubirComprobante" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">📎 Adjuntar Comprobante de Licencia</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-2">Trámite N°: <strong id="compModalIdTramite" class="text-dark"></strong></p>
+          <p class="small text-muted mb-3">Seleccioná una imagen (JPG/PNG, podés sacar foto directa con el celular) o un archivo PDF (máximo 5 MB):</p>
+          <form id="formSubirComprobante">
+            <input type="hidden" id="compHiddenIdTramite">
+            <div class="mb-3">
+              <input type="file" id="compArchivoInput" class="form-control" accept="image/*,.pdf" required>
+            </div>
+            <button type="submit" id="btnSubirArchivo" class="btn btn-primary w-100 fw-bold">Subir Comprobante a la Plataforma</button>
+          </form>
+          <div id="compMensaje" class="alert mt-3 d-none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CAMBIAR CONTRASEÑA -->
+  <div class="modal fade" id="modalCambiarClave" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">🔑 Cambiar Contraseña</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="formCambiarClave">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Usuario</label>
+              <input type="text" id="ccUsuario" class="form-control" required autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Clave Actual (o DNI si nunca la cambiaste)</label>
+              <input type="password" id="ccActual" class="form-control" required autocomplete="off">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Nueva Clave (mínimo 4 caracteres)</label>
+              <input type="password" id="ccNueva" class="form-control" minlength="4" required autocomplete="off">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Confirmar Nueva Clave</label>
+              <input type="password" id="ccConfirmar" class="form-control" minlength="4" required autocomplete="off">
+            </div>
+            <button type="submit" id="btnGuardarClave" class="btn btn-primary w-100 fw-bold">Actualizar Contraseña</button>
+          </form>
+          <div id="ccMensaje" class="alert mt-3 d-none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALES ORIGINALES DE CAPACITACIONES -->
   <div class="modal fade" id="modalContenido" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="tituloContenido">Material de Capacitación</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body text-center p-4">
           <p class="text-muted mb-4">Asegúrese de revisar todo el material atentamente antes de rendir la evaluación.</p>
-          <a id="btnLinkDrive" href="#" target="_blank" class="btn btn-outline-primary btn-lg fw-bold">
-            📁 Abrir Material en Google Drive (PDF)
-          </a>
+          <a id="btnLinkDrive" href="#" target="_blank" class="btn btn-outline-primary btn-lg fw-bold">📁 Abrir Material en Google Drive (PDF)</a>
         </div>
       </div>
     </div>
@@ -143,14 +414,9 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title fw-bold" id="tituloExamen">Evaluación</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body p-4" id="cuerpoExamen">
-          <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2 text-muted">Cargando preguntas...</p>
-          </div>
-        </div>
+        <div class="modal-body p-4" id="cuerpoExamen"></div>
         <div class="modal-footer" id="footerExamen">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
           <button type="button" id="btnEnviarExamen" class="btn btn-success fw-bold" onclick="evaluarExamen()">Enviar Evaluación</button>
@@ -160,47 +426,39 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDkm0yZXWH8R6bDHeHR6DWe4WmOUixH_okjKncJkh57z3438NSAJgg7RZyG9G-vrcMoA/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4VjMZ99sJetMcVVYLbLyfg0LyQiVmIUIgcXYFmJq9y6vCOosewZDtPtE3sCJNuc77g/exec";
 
     let usuarioActual = null;
+    let claveSesionTemporal = "";
     let preguntasActuales = [];
     let capacitacionActual = null;
+    let configPermisosGlobal = [];
+    let feriadosGlobal = [];
+    let empleadosRRHHGlobal = [];
+    let bandejaRRHHGlobal = [];
+    let historialSupervisionGlobal = [];
+    let empleadosSectorJefeGlobal = [];
 
-    // Purga de almacenamiento local y caché
     async function limpiarCacheNavegador() {
       try {
         localStorage.clear();
         sessionStorage.clear();
-        if ('caches' in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(key => caches.delete(key)));
-        }
-      } catch (err) {
-        console.warn("Limpia parcial de caché:", err);
-      }
+      } catch (err) {}
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      limpiarCacheNavegador();
-    });
+    window.addEventListener('DOMContentLoaded', limpiarCacheNavegador);
 
-    // Conexión con Apps Script (GAS)
-    async function callGAS(params, callback) {
-      const query = Object.keys(params)
-        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
-        .join('&');
-
-      const url = SCRIPT_URL + '?' + query;
-
+    async function callGAS(payload, callback) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 35000);
 
-        const response = await fetch(url, {
-          method: 'GET',
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
           redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -211,10 +469,17 @@
           return;
         }
       } catch (e) {
-        console.warn("Fetch directo no soportado, intentando fallback JSONP...", e);
+        console.warn("POST falló, intentando fallback JSONP...", e);
       }
 
-      // JSONP Fallback
+      if (payload.action === 'subirComprobante') {
+        callback({ success: false, message: "No se pudo conectar para subir el archivo. Verificá tu conexión." });
+        return;
+      }
+
+      const query = Object.keys(payload)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(payload[k]))
+        .join('&');
       const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
       let script = document.createElement('script');
       let timeoutId;
@@ -226,30 +491,21 @@
         callback(data);
       };
 
-      timeoutId = setTimeout(function() {
+      timeoutId = setTimeout(() => {
         delete window[callbackName];
         if (script.parentNode) script.parentNode.removeChild(script);
-        callback({ success: false, message: "Tiempo de espera agotado. Revisa tu conexión a internet o intenta nuevamente." });
+        callback({ success: false, message: "Tiempo de espera agotado." });
       }, 30000);
 
-      const jsonpQuery = query + '&callback=' + callbackName;
-      script.src = SCRIPT_URL + '?' + jsonpQuery;
-
-      script.onerror = function() {
-        clearTimeout(timeoutId);
-        delete window[callbackName];
-        if (script.parentNode) script.parentNode.removeChild(script);
-        callback({ success: false, message: "Error al conectar con el servidor." });
-      };
-
+      script.src = SCRIPT_URL + '?' + query + '&callback=' + callbackName;
       document.body.appendChild(script);
     }
 
-    // Login
+    // LOGIN
     document.getElementById('formLogin').addEventListener('submit', function(e) {
       e.preventDefault();
       const usuario = document.getElementById('loginUsuario').value.trim();
-      const dni = document.getElementById('loginDni').value.trim();
+      const clave = document.getElementById('loginClave').value.trim();
       const btn = document.getElementById('btnIngresar');
       const errDiv = document.getElementById('loginError');
 
@@ -257,83 +513,957 @@
       btn.innerText = "Verificando...";
       errDiv.classList.add('d-none');
 
-      callGAS({ action: 'login', usuario: usuario, dni: dni }, function(res) {
+      callGAS({ action: 'login', usuario: usuario, clave: clave }, function(res) {
         btn.disabled = false;
         btn.innerText = "Ingresar";
 
         if (res && res.success) {
           usuarioActual = res;
-          document.getElementById('usuarioInfo').innerText = `${res.nombre} (Legajo: ${res.legajo})`;
+          claveSesionTemporal = clave;
+          document.getElementById('loginClave').value = "";
+
+          let etiquetaRol = res.rol;
+          if (res.rol === "Jefa_RRHH") etiquetaRol = "Jefa de RRHH";
+          else if (res.accesoRRHH) etiquetaRol = "RRHH Habilitado";
+          else if (res.esDelegadoJefe) etiquetaRol = "Aprobador Delegado";
+
+          document.getElementById('usuarioInfo').innerText = `${res.nombre} | ${res.unidad} (${etiquetaRol})`;
           document.getElementById('btnCerrarSesion').classList.remove('d-none');
-          
-          // Ocultar login y mostrar vista con el video introductorio
+          document.getElementById('btnAbrirCambioClave').classList.remove('d-none');
+          document.getElementById('ccUsuario').value = res.usuario;
+
+          if (res.usaClaveDefecto) {
+            document.getElementById('alertaClaveDefecto').classList.remove('d-none');
+          } else {
+            document.getElementById('alertaClaveDefecto').classList.add('d-none');
+          }
+
           document.getElementById('vistaLogin').classList.add('d-none');
+          document.getElementById('barraNavegacion').classList.remove('d-none');
           document.getElementById('vistaVideoIntro').classList.remove('d-none');
-          
-          // Toma dinámicamente la URL de la hoja 'youtube' (Celda B2) recibida desde el backend
+
           let videoUrl = res.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE";
-          
-          // Agrega parámetro para reproducción automática
           if (!videoUrl.includes('autoplay=1')) {
             videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
           }
-          
           document.getElementById('iframeVideoIntro').src = videoUrl;
-          
+
           renderCapacitaciones(res.capacitaciones);
+          inicializarModuloPermisos(res);
         } else {
-          errDiv.innerText = (res && res.message) ? res.message : "Usuario o DNI incorrectos.";
+          errDiv.innerText = (res && res.message) ? res.message : "Usuario o clave incorrectos.";
           errDiv.classList.remove('d-none');
         }
       });
     });
 
-    // Función para pasar del video a las capacitaciones
-    function mostrarCapacitaciones() {
-      // Pausa el video quitándole la URL
+    function cambiarPestana(pestana) {
       document.getElementById('iframeVideoIntro').src = "";
-      
-      // Oculta el video y muestra la lista de capacitaciones
       document.getElementById('vistaVideoIntro').classList.add('d-none');
-      document.getElementById('vistaCapacitaciones').classList.remove('d-none');
+
+      if (pestana === 'capacitaciones') {
+        document.getElementById('tabCapacitaciones').classList.add('active');
+        document.getElementById('tabPermisos').classList.remove('active');
+        document.getElementById('vistaPermisos').classList.add('d-none');
+        document.getElementById('vistaCapacitaciones').classList.remove('d-none');
+      } else {
+        document.getElementById('tabPermisos').classList.add('active');
+        document.getElementById('tabCapacitaciones').classList.remove('active');
+        document.getElementById('vistaCapacitaciones').classList.add('d-none');
+        document.getElementById('vistaPermisos').classList.remove('d-none');
+      }
     }
 
-    // Cierre de Sesión
+    function mostrarCapacitaciones() {
+      cambiarPestana('capacitaciones');
+    }
+
+    // CÁLCULO DE DÍAS HÁBILES VS CORRIDOS
+    function obtenerTipoDiasEfectivo(confPermiso) {
+      if (!confPermiso) return usuarioActual.modalidadDias;
+      if (confPermiso.tipoDias === "SEGUN_CONVENIO") return usuarioActual.modalidadDias;
+      return confPermiso.tipoDias;
+    }
+
+    function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
+      const [y1, m1, d1] = fechaInicioStr.split('-').map(Number);
+      const [y2, m2, d2] = fechaFinStr.split('-').map(Number);
+      const inicio = new Date(y1, m1 - 1, d1);
+      const fin = new Date(y2, m2 - 1, d2);
+
+      if (fin < inicio) return { valido: false, mensaje: "La fecha 'Hasta' no puede ser anterior a 'Desde'." };
+
+      let totalCalendario = 0;
+      let totalHabiles = 0;
+      let finesDeSemana = 0;
+      let feriadosEncontrados = [];
+
+      const setFeriados = new Set(feriadosGlobal.map(f => f.fecha));
+      let cursor = new Date(inicio);
+
+      while (cursor <= fin) {
+        totalCalendario++;
+        const diaSemana = cursor.getDay();
+        const yyyy = cursor.getFullYear();
+        const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+        const dd = String(cursor.getDate()).padStart(2, '0');
+        const iso = `${yyyy}-${mm}-${dd}`;
+
+        if (diaSemana === 0 || diaSemana === 6) {
+          finesDeSemana++;
+        } else if (setFeriados.has(iso)) {
+          const ferObj = feriadosGlobal.find(f => f.fecha === iso);
+          feriadosEncontrados.push(`${dd}/${mm} (${ferObj ? ferObj.desc : 'Feriado'})`);
+        } else {
+          totalHabiles++;
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      if (modalidad === "CORRIDOS") {
+        return {
+          valido: true,
+          diasComputados: totalCalendario,
+          detalle: `Cómputo por <strong>Días Corridos</strong>: ${totalCalendario} día(s) calendario.`
+        };
+      } else {
+        if (totalHabiles === 0) {
+          return {
+            valido: false,
+            mensaje: "El rango seleccionado solo contiene sábados, domingos o feriados (0 días hábiles)."
+          };
+        }
+        let infoExtra = [];
+        if (finesDeSemana > 0) infoExtra.push(`${finesDeSemana} día(s) de fin de semana excluidos`);
+        if (feriadosEncontrados.length > 0) infoExtra.push(`feriado excluido: ${feriadosEncontrados.join(', ')}`);
+
+        return {
+          valido: true,
+          diasComputados: totalHabiles,
+          detalle: `Cómputo por <strong>Días Hábiles</strong>: <strong>${totalHabiles} día(s)</strong> de ${totalCalendario} totales` +
+                   (infoExtra.length > 0 ? ` (${infoExtra.join('; ')}).` : '.')
+        };
+      }
+    }
+
+    function inicializarModuloPermisos(data) {
+      configPermisosGlobal = data.permisosConfig || [];
+      feriadosGlobal = data.feriados || [];
+      empleadosRRHHGlobal = data.empleadosRRHHAdmin || [];
+      bandejaRRHHGlobal = data.bandejaRRHH || [];
+      historialSupervisionGlobal = data.historialSupervision || [];
+      empleadosSectorJefeGlobal = data.empleadosSectorJefe || [];
+
+      document.getElementById('badgeConvenioUsuario').innerText = data.convenio || "CCT";
+      document.getElementById('badgeModalidadDias').innerText =
+        data.modalidadDias === "HABILES" ? "Cómputo: Días Hábiles" : "Cómputo: Días Corridos";
+
+      const select = document.getElementById('permisoTipo');
+      select.innerHTML = '<option value="">Seleccione un motivo...</option>';
+      configPermisosGlobal.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.nombre;
+        opt.innerText = p.nombre;
+        select.appendChild(opt);
+      });
+
+      const rolNorm = (data.rol || "").toLowerCase();
+      const esJefaRRHH = rolNorm === 'jefa_rrhh';
+      const tieneModuloRRHH = esJefaRRHH || data.accesoRRHH === true;
+      const esJefe = rolNorm === 'jefe';
+      const esDelegadoJefe = data.esDelegadoJefe === true;
+
+      if (rolNorm === 'gerente') {
+        document.getElementById('bloqueFormularioPermiso').classList.add('d-none');
+        document.getElementById('seccionMisSolicitudes').classList.add('d-none');
+        document.getElementById('bloqueBandejasPermisos').className = 'col-12';
+      } else {
+        document.getElementById('bloqueFormularioPermiso').classList.remove('d-none');
+        document.getElementById('seccionMisSolicitudes').classList.remove('d-none');
+        document.getElementById('bloqueBandejasPermisos').className = 'col-12 col-lg-7';
+      }
+
+      if (esJefe) {
+        document.getElementById('panelDelegacionJefe').classList.remove('d-none');
+        renderPanelDelegacionJefe(empleadosSectorJefeGlobal);
+      } else {
+        document.getElementById('panelDelegacionJefe').classList.add('d-none');
+      }
+
+      if (esJefaRRHH) {
+        document.getElementById('panelDelegacionJefaRRHH').classList.remove('d-none');
+        renderPanelDelegacionRRHH(data.operariosDelegacion || []);
+      } else {
+        document.getElementById('panelDelegacionJefaRRHH').classList.add('d-none');
+      }
+
+      if (tieneModuloRRHH) {
+        poblarSelectorVacacionesRRHH();
+        renderFeriadosRRHH();
+      }
+
+      if (!tieneModuloRRHH && (esJefe || esDelegadoJefe || rolNorm === 'gerente')) {
+        document.getElementById('seccionHistorialSupervision').classList.remove('d-none');
+        renderHistorialSupervision(historialSupervisionGlobal);
+      } else {
+        document.getElementById('seccionHistorialSupervision').classList.add('d-none');
+      }
+
+      renderMisSolicitudes(data.misSolicitudes || []);
+      renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, data.bandejaAprobacion || [], bandejaRRHHGlobal);
+    }
+
+    function actualizarInfoPermiso() {
+      const sel = document.getElementById('permisoTipo').value;
+      const infoDiv = document.getElementById('infoReglaPermiso');
+      const panelVac = document.getElementById('panelSaldoVacaciones');
+      const found = configPermisosGlobal.find(p => p.nombre === sel);
+
+      panelVac.classList.add('d-none');
+      document.getElementById('errorSaldoExcedido').classList.add('d-none');
+
+      if (!found) {
+        infoDiv.innerText = '';
+        calcularDiasPermiso();
+        return;
+      }
+
+      const modalidad = obtenerTipoDiasEfectivo(found);
+      const etiquetaTipo = modalidad === "HABILES" ? "días hábiles" : "días corridos";
+
+      if (found.esVacaciones) {
+        infoDiv.innerText = '';
+        panelVac.classList.remove('d-none');
+        document.getElementById('textoSaldoDias').innerText = `${usuarioActual.diasVacaciones} ${etiquetaTipo}`;
+        document.getElementById('subtextoModalidadVac').innerText =
+          modalidad === "HABILES"
+            ? "Tu convenio computa DÍAS HÁBILES (excluye sábados, domingos y feriados)."
+            : "Tu convenio computa DÍAS CORRIDOS (incluye fines de semana y feriados).";
+      } else {
+        infoDiv.innerText = (found.diasMax > 0 ? `Máximo según convenio: ${found.diasMax} ${etiquetaTipo}. ` : '') +
+          (found.requiereComprobante.toLowerCase() === 'si' ? '⚠️ Requiere comprobante (podrás subir la foto o PDF desde "Mis Solicitudes").' : 'No requiere comprobante.');
+      }
+
+      calcularDiasPermiso();
+    }
+
+    function calcularDiasPermiso() {
+      const d1 = document.getElementById('permisoDesde').value;
+      const d2 = document.getElementById('permisoHasta').value;
+      const sel = document.getElementById('permisoTipo').value;
+      const found = configPermisosGlobal.find(p => p.nombre === sel);
+      const modalidad = obtenerTipoDiasEfectivo(found);
+
+      const inputDias = document.getElementById('permisoDias');
+      const desgloseDiv = document.getElementById('desgloseCalculoDias');
+      const errDiv = document.getElementById('errorSaldoExcedido');
+      const btnEnviar = document.getElementById('btnEnviarPermiso');
+
+      errDiv.classList.add('d-none');
+      btnEnviar.disabled = false;
+
+      if (!d1 || !d2) {
+        inputDias.value = "";
+        desgloseDiv.innerHTML = "";
+        return;
+      }
+
+      const calc = calcularDiasEntreFechas(d1, d2, modalidad);
+      if (!calc.valido) {
+        inputDias.value = "";
+        desgloseDiv.innerHTML = "";
+        errDiv.innerHTML = `⛔ ${calc.mensaje}`;
+        errDiv.classList.remove('d-none');
+        btnEnviar.disabled = true;
+        return;
+      }
+
+      inputDias.value = calc.diasComputados;
+      desgloseDiv.innerHTML = calc.detalle;
+
+      if (found && found.esVacaciones && calc.diasComputados > usuarioActual.diasVacaciones) {
+        errDiv.innerHTML = `⛔ <strong>Saldo insuficiente:</strong> Estás solicitando <strong>${calc.diasComputados} día(s)</strong>, pero solo tenés <strong>${usuarioActual.diasVacaciones} día(s)</strong> disponibles. Seleccioná un rango menor.`;
+        errDiv.classList.remove('d-none');
+        btnEnviar.disabled = true;
+      } else if (found && !found.esVacaciones && found.diasMax > 0 && calc.diasComputados > found.diasMax) {
+        errDiv.innerHTML = `⛔ <strong>Excede el máximo del convenio:</strong> Esta licencia permite hasta <strong>${found.diasMax} día(s)</strong>.`;
+        errDiv.classList.remove('d-none');
+        btnEnviar.disabled = true;
+      }
+    }
+
+    // ENVÍO DE SOLICITUD
+    document.getElementById('formPermiso').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnEnviarPermiso');
+      const msgDiv = document.getElementById('msgPermiso');
+      msgDiv.classList.add('d-none');
+
+      const tipoSel = document.getElementById('permisoTipo').value;
+      const conf = configPermisosGlobal.find(p => p.nombre === tipoSel);
+      const modalidad = obtenerTipoDiasEfectivo(conf);
+
+      const payload = {
+        action: 'crearPermiso',
+        usuario: document.getElementById('firmaUsuario').value.trim(),
+        clave: document.getElementById('firmaClave').value.trim(),
+        tipoPermiso: tipoSel,
+        tipoDiasAplicado: modalidad,
+        esVacaciones: conf ? conf.esVacaciones : false,
+        fechaDesde: document.getElementById('permisoDesde').value,
+        fechaHasta: document.getElementById('permisoHasta').value,
+        cantDias: document.getElementById('permisoDias').value,
+        motivo: document.getElementById('permisoMotivo').value.trim()
+      };
+
+      btn.disabled = true;
+      btn.innerText = "Firmando y enviando...";
+
+      callGAS(payload, function(res) {
+        btn.disabled = false;
+        btn.innerText = "Enviar Solicitud a Aprobación";
+        document.getElementById('firmaClave').value = "";
+        msgDiv.classList.remove('d-none');
+
+        if (res && res.success) {
+          msgDiv.className = "alert alert-success mt-3";
+          msgDiv.innerText = res.message;
+          document.getElementById('formPermiso').reset();
+          document.getElementById('panelSaldoVacaciones').classList.add('d-none');
+          document.getElementById('desgloseCalculoDias').innerHTML = '';
+          document.getElementById('infoReglaPermiso').innerText = '';
+          renderMisSolicitudes(res.misSolicitudes || []);
+        } else {
+          msgDiv.className = "alert alert-danger mt-3";
+          msgDiv.innerText = res ? res.message : "Error al enviar solicitud.";
+        }
+      });
+    });
+
+    // SUBIDA DE COMPROBANTE (Exclusivo para el solicitante cuando requiereComprobante === true)
+    function abrirModalSubirComprobante(idTramite) {
+      document.getElementById('compHiddenIdTramite').value = idTramite;
+      document.getElementById('compModalIdTramite').innerText = idTramite;
+      document.getElementById('compArchivoInput').value = '';
+      document.getElementById('compMensaje').classList.add('d-none');
+      new bootstrap.Modal(document.getElementById('modalSubirComprobante')).show();
+    }
+
+    document.getElementById('formSubirComprobante').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById('compArchivoInput');
+      const file = fileInput.files[0];
+      const msgDiv = document.getElementById('compMensaje');
+      const btn = document.getElementById('btnSubirArchivo');
+      const idTramite = document.getElementById('compHiddenIdTramite').value;
+
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        msgDiv.className = "alert alert-danger mt-3";
+        msgDiv.innerText = "El archivo supera el límite de 5 MB.";
+        msgDiv.classList.remove('d-none');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "Subiendo archivo a Drive...";
+      msgDiv.classList.add('d-none');
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const base64String = evt.target.result.split(',')[1];
+        callGAS({
+          action: 'subirComprobante',
+          usuario: usuarioActual.usuario,
+          clave: claveSesionTemporal,
+          idTramite: idTramite,
+          fileName: file.name,
+          mimeType: file.type,
+          fileData: base64String
+        }, function(res) {
+          btn.disabled = false;
+          btn.innerText = "Subir Comprobante a la Plataforma";
+          msgDiv.classList.remove('d-none');
+
+          if (res && res.success) {
+            msgDiv.className = "alert alert-success mt-3";
+            msgDiv.innerText = "✓ " + res.message;
+            if (res.misSolicitudes) renderMisSolicitudes(res.misSolicitudes);
+          } else {
+            msgDiv.className = "alert alert-danger mt-3";
+            msgDiv.innerText = res ? res.message : "Error al subir el comprobante.";
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function renderBloqueComprobanteHtml(s, esElSolicitante, esRRHH) {
+      const mostrarAlgo = s.requiereComprobante || s.urlComprobante || (esRRHH && s.urlNotaPDF);
+      if (!mostrarAlgo) return '';
+
+      let html = '<div class="mt-2 d-flex flex-wrap align-items-center gap-2">';
+
+      if (s.urlComprobante) {
+        html += `<a href="${s.urlComprobante}" target="_blank" class="btn btn-outline-primary btn-sm fw-bold">📄 Ver Comprobante Adjunto</a>`;
+      } else if (s.requiereComprobante) {
+        html += `<span class="badge bg-warning text-dark">⚠️ Pendiente de comprobante</span>`;
+      }
+
+      if (esRRHH && s.urlNotaPDF) {
+        html += `<a href="${s.urlNotaPDF}" target="_blank" class="btn btn-outline-success btn-sm fw-bold">🖨️ Ver / Imprimir Nota PDF (Firma)</a>`;
+      }
+
+      if (esElSolicitante && s.requiereComprobante && s.estado !== 'Rechazado') {
+        const textoBtn = s.urlComprobante ? '🔄 Reemplazar Comprobante' : '📎 Subir Comprobante (Foto/PDF)';
+        html += `<button type="button" class="btn btn-outline-dark btn-sm fw-semibold" onclick="abrirModalSubirComprobante('${s.idTramite}')">${textoBtn}</button>`;
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderMisSolicitudes(lista) {
+      const cont = document.getElementById('listaMisSolicitudes');
+      if (!lista.length) {
+        cont.innerHTML = '<p class="text-muted small mb-0">Aún no realizaste solicitudes de permisos.</p>';
+        return;
+      }
+
+      let html = '<div class="list-group">';
+      lista.forEach(s => {
+        let badge = '<span class="badge bg-warning text-dark">Pendiente de Jefe</span>';
+        if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">✓ Aprobado (En RRHH)</span>';
+        if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">✓ Documentado por RRHH</span>';
+        if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">✕ Denegado (Elegir otra fecha)</span>';
+
+        html += `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+              <strong>${s.tipoPermiso}</strong>
+              ${badge}
+            </div>
+            <div class="small text-muted mt-1">
+              Trámite: <strong>${s.idTramite}</strong> | Del <strong>${s.fechaDesde}</strong> al <strong>${s.fechaHasta}</strong> 
+              (<strong>${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''}</strong>)
+            </div>
+            ${s.obsResolucion ? `<div class="small text-dark mt-1 bg-light p-2 rounded border">Respuesta (${s.resueltoPor}): ${s.obsResolucion}</div>` : ''}
+            ${renderBloqueComprobanteHtml(s, true, false)}
+          </div>`;
+      });
+      html += '</div>';
+      cont.innerHTML = html;
+    }
+
+    function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, bandejaJefe, bandejaRRHH) {
+      const badgeNotif = document.getElementById('badgeNotificacionPermisos');
+      const alertaSup = document.getElementById('alertaPendientesSuperior');
+      let pendientesCount = 0;
+
+      if (rolNorm === 'jefe' || rolNorm === 'gerente' || rolNorm === 'jefa_rrhh' || esDelegadoJefe) {
+        document.getElementById('seccionBandejaJefe').classList.remove('d-none');
+        pendientesCount += bandejaJefe.length;
+        const cont = document.getElementById('listaBandejaJefe');
+
+        if (!bandejaJefe.length) {
+          cont.innerHTML = '<p class="text-muted small mb-0">No tenés solicitudes pendientes de aprobación.</p>';
+        } else {
+          let html = '';
+          bandejaJefe.forEach(s => {
+            let alertaConflictoHtml = '';
+            if (s.conflictos && s.conflictos.length > 0) {
+              const detalle = s.conflictos.map(c =>
+                `<strong>${c.nombre}</strong> (${c.tipoPermiso}: del ${c.fechaDesde} al ${c.fechaHasta} - <em>${c.estado}</em>)`
+              ).join('<br>');
+              alertaConflictoHtml = `
+                <div class="alerta-superposicion my-2">
+                  ⚠️ <strong>¡Alerta de Superposición en ${s.unidad}!</strong> Las fechas coinciden con:<br>
+                  ${detalle}
+                </div>`;
+            }
+
+            html += `
+              <div class="border rounded p-3 mb-3 bg-light">
+                <div class="d-flex justify-content-between flex-wrap">
+                  <span class="fw-bold text-dark">${s.nombre} (Leg. ${s.legajo} - ${s.unidad})</span>
+                  <span class="badge bg-secondary">${s.idTramite}</span>
+                </div>
+                <div class="small mt-1">
+                  <strong>Motivo:</strong> ${s.tipoPermiso}<br>
+                  <strong>Fechas:</strong> ${s.fechaDesde} al ${s.fechaHasta} (<strong>${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''}</strong>)<br>
+                  ${s.motivo ? `<strong>Detalle empleado:</strong> ${s.motivo}` : ''}
+                </div>
+                ${renderBloqueComprobanteHtml(s, false, false)}
+                ${alertaConflictoHtml}
+                <div class="mt-2">
+                  <input type="text" id="obs_${s.idTramite}" class="form-control form-control-sm mb-2" placeholder="Observación (ej: Motivo si denegás por cobertura)...">
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm fw-bold flex-fill" onclick="resolverTramite('${s.idTramite}', 'APROBAR')">✓ Aprobar y Enviar a RRHH</button>
+                    <button class="btn btn-danger btn-sm fw-bold flex-fill" onclick="resolverTramite('${s.idTramite}', 'RECHAZAR')">✕ Denegar / Pedir otra fecha</button>
+                  </div>
+                </div>
+              </div>`;
+          });
+          cont.innerHTML = html;
+        }
+      } else {
+        document.getElementById('seccionBandejaJefe').classList.add('d-none');
+      }
+
+      if (tieneModuloRRHH) {
+        document.getElementById('seccionBandejaRRHH').classList.remove('d-none');
+        pendientesCount += bandejaRRHH.filter(x => x.estado === 'Aprobado_RRHH').length;
+        renderListaBandejaRRHH(bandejaRRHH);
+      } else {
+        document.getElementById('seccionBandejaRRHH').classList.add('d-none');
+      }
+
+      if (pendientesCount > 0) {
+        badgeNotif.innerText = pendientesCount;
+        badgeNotif.classList.remove('d-none');
+        alertaSup.innerText = `🔔 Tenés ${pendientesCount} solicitud(es) pendiente(s) de gestión en tu bandeja.`;
+        alertaSup.classList.remove('d-none');
+      } else {
+        badgeNotif.classList.add('d-none');
+        alertaSup.classList.add('d-none');
+      }
+    }
+
+    function renderListaBandejaRRHH(lista) {
+      const cont = document.getElementById('listaBandejaRRHH');
+      if (!lista.length) {
+        cont.innerHTML = '<p class="text-muted small mb-0">No hay permisos aprobados que coincidan con la búsqueda.</p>';
+        return;
+      }
+
+      let html = '';
+      lista.forEach(s => {
+        const pendienteDoc = s.estado === 'Aprobado_RRHH';
+        html += `
+          <div class="border rounded p-3 mb-3 ${pendienteDoc ? 'bg-warning-subtle' : 'bg-light'}">
+            <div class="d-flex justify-content-between flex-wrap gap-1">
+              <span class="fw-bold">${s.nombre} (Leg. ${s.legajo} - ${s.unidad})</span>
+              <div>
+                <span class="badge bg-secondary me-1">${s.idTramite}</span>
+                <span class="badge ${pendienteDoc ? 'bg-danger' : 'bg-success'}">${pendienteDoc ? 'Pendiente Documentar' : 'Finalizado'}</span>
+              </div>
+            </div>
+            <div class="small mt-1">
+              <strong>Permiso:</strong> ${s.tipoPermiso} | <strong>Fechas:</strong> ${s.fechaDesde} al ${s.fechaHasta} (${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''})<br>
+              <strong>Estado gestión:</strong> ${s.resueltoPor} (${s.fechaResolucion})
+            </div>
+            ${renderBloqueComprobanteHtml(s, false, true)}
+            ${pendienteDoc ? `
+              <div class="mt-2">
+                <button id="btnFinRRHH_${s.idTramite}" class="btn btn-primary btn-sm fw-bold w-100" onclick="resolverTramite('${s.idTramite}', 'FINALIZAR_RRHH')">📄 Marcar Documentación Generada y Crear Nota PDF</button>
+              </div>` : ''}
+          </div>`;
+      });
+      cont.innerHTML = html;
+    }
+
+    function filtrarBandejaRRHH() {
+      const q = document.getElementById('filtroBandejaRRHHInput').value.trim().toLowerCase();
+      if (!q) {
+        renderListaBandejaRRHH(bandejaRRHHGlobal);
+        return;
+      }
+      const filtrados = bandejaRRHHGlobal.filter(s =>
+        s.nombre.toLowerCase().includes(q) ||
+        s.unidad.toLowerCase().includes(q) ||
+        s.idTramite.toLowerCase().includes(q) ||
+        s.tipoPermiso.toLowerCase().includes(q) ||
+        s.legajo.toLowerCase().includes(q)
+      );
+      renderListaBandejaRRHH(filtrados);
+    }
+
+    // HISTORIAL DE SUPERVISIÓN (Solo para Jefes/Delegados/Gerencia sin panel RRHH)
+    function renderHistorialSupervision(lista) {
+      const cont = document.getElementById('listaHistorialSupervision');
+      if (!lista.length) {
+        cont.innerHTML = '<p class="text-muted small mb-0">No hay registros históricos para mostrar.</p>';
+        return;
+      }
+
+      let html = '<div class="list-group" style="max-height: 420px; overflow-y: auto;">';
+      lista.forEach(s => {
+        let badge = '<span class="badge bg-warning text-dark">Pendiente</span>';
+        if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">Aprobado</span>';
+        if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">Finalizado RRHH</span>';
+        if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">Denegado</span>';
+
+        html += `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+              <span><strong>${s.nombre}</strong> (Leg. ${s.legajo} - ${s.unidad})</span>
+              ${badge}
+            </div>
+            <div class="small text-muted mt-1">
+              <strong>${s.idTramite}</strong> | ${s.tipoPermiso} | Del <strong>${s.fechaDesde}</strong> al <strong>${s.fechaHasta}</strong> (${s.cantDias}d)
+            </div>
+            ${renderBloqueComprobanteHtml(s, false, false)}
+          </div>`;
+      });
+      html += '</div>';
+      cont.innerHTML = html;
+    }
+
+    function filtrarHistorialSupervision() {
+      const q = document.getElementById('filtroHistorialInput').value.trim().toLowerCase();
+      if (!q) {
+        renderHistorialSupervision(historialSupervisionGlobal);
+        return;
+      }
+      const filtrados = historialSupervisionGlobal.filter(s =>
+        s.nombre.toLowerCase().includes(q) ||
+        s.unidad.toLowerCase().includes(q) ||
+        s.idTramite.toLowerCase().includes(q) ||
+        s.tipoPermiso.toLowerCase().includes(q) ||
+        s.legajo.toLowerCase().includes(q)
+      );
+      renderHistorialSupervision(filtrados);
+    }
+
+    function resolverTramite(idTramite, decision) {
+      const msgConfirm = decision === 'APROBAR'
+        ? `¿Confirmás APROBAR el trámite ${idTramite} y derivarlo a RRHH?`
+        : (decision === 'RECHAZAR'
+          ? `¿Confirmás DENEGAR el trámite ${idTramite}?`
+          : `¿Confirmás finalizar el trámite ${idTramite} y generar automáticamente la Nota PDF para firma manuscrita?`);
+
+      if (!confirm(msgConfirm)) return;
+
+      const btnFin = document.getElementById(`btnFinRRHH_${idTramite}`);
+      if (btnFin) {
+        btnFin.disabled = true;
+        btnFin.innerText = "Generando Nota PDF...";
+      }
+
+      const obsInput = document.getElementById(`obs_${idTramite}`);
+      const obs = obsInput ? obsInput.value.trim() : "";
+
+      callGAS({
+        action: 'resolverPermiso',
+        usuario: usuarioActual.usuario,
+        clave: claveSesionTemporal,
+        idTramite: idTramite,
+        decision: decision,
+        observacion: obs
+      }, function(res) {
+        if (btnFin) {
+          btnFin.disabled = false;
+          btnFin.innerText = "📄 Marcar Documentación Generada y Crear Nota PDF";
+        }
+
+        if (res && res.success) {
+          alert(res.message);
+          if (res.urlNotaPDF) {
+            window.open(res.urlNotaPDF, '_blank');
+          }
+
+          const rolNorm = (usuarioActual.rol || "").toLowerCase();
+          const esDelegadoJefe = usuarioActual.esDelegadoJefe === true;
+          const tieneModuloRRHH = rolNorm === 'jefa_rrhh' || usuarioActual.accesoRRHH === true;
+
+          if (res.empleadosRRHHAdmin) {
+            empleadosRRHHGlobal = res.empleadosRRHHAdmin;
+            poblarSelectorVacacionesRRHH();
+          }
+          if (res.bandejaRRHH) {
+            bandejaRRHHGlobal = res.bandejaRRHH;
+          }
+          if (res.historialSupervision) {
+            historialSupervisionGlobal = res.historialSupervision;
+            renderHistorialSupervision(historialSupervisionGlobal);
+          }
+          renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, res.bandejaAprobacion || [], bandejaRRHHGlobal);
+        } else {
+          alert(res ? res.message : "Error al procesar la acción.");
+        }
+      });
+    }
+
+    // DELEGACIÓN PARA JEFES DE UNIDAD (Hasta 4 personas)
+    function renderPanelDelegacionJefe(listaEmpleados) {
+      const activos = listaEmpleados.filter(e => e.delegadoActivo);
+      const disponibles = listaEmpleados.filter(e => !e.delegadoActivo);
+
+      document.getElementById('contadorDelegadosJefe').innerText = `${activos.length} / 4 activos`;
+
+      const contActivos = document.getElementById('listaDelegadosJefeActivos');
+      if (!activos.length) {
+        contActivos.innerHTML = '<div class="list-group-item text-muted small">No tenés delegados activos actualmente.</div>';
+      } else {
+        contActivos.innerHTML = activos.map(d => `
+          <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <div>
+              <strong>${d.nombre}</strong> <span class="text-muted small">(Leg. ${d.legajo})</span>
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="cambiarDelegacionJefe('${d.usuario}', false)">🚫 Revocar</button>
+          </div>
+        `).join('');
+      }
+
+      poblarSelectCandidatosJefe(disponibles);
+      document.getElementById('btnAgregarDelegadoJefe').disabled = activos.length >= 4 || disponibles.length === 0;
+    }
+
+    function poblarSelectCandidatosJefe(disponibles) {
+      const sel = document.getElementById('selectCandidatoDelegadoJefe');
+      if (!disponibles.length) {
+        sel.innerHTML = '<option value="">No hay más empleados disponibles...</option>';
+        return;
+      }
+      sel.innerHTML = disponibles
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .map(d => `<option value="${d.usuario}">${d.nombre} (Leg. ${d.legajo})</option>`)
+        .join('');
+    }
+
+    function filtrarSelectDelegadosJefe() {
+      const q = document.getElementById('buscadorEmpleadoDelegar').value.trim().toLowerCase();
+      const disponibles = empleadosSectorJefeGlobal.filter(e =>
+        !e.delegadoActivo && (e.nombre.toLowerCase().includes(q) || e.legajo.toLowerCase().includes(q))
+      );
+      poblarSelectCandidatosJefe(disponibles);
+    }
+
+    function habilitarDelegadoJefeDesdeSelect() {
+      const usr = document.getElementById('selectCandidatoDelegadoJefe').value;
+      if (!usr) return;
+      cambiarDelegacionJefe(usr, true);
+    }
+
+    function cambiarDelegacionJefe(usuarioDelegado, habilitar) {
+      callGAS({
+        action: 'toggleDelegacionJefe',
+        usuario: usuarioActual.usuario,
+        clave: claveSesionTemporal,
+        usuarioDelegado: usuarioDelegado,
+        habilitar: habilitar
+      }, function(res) {
+        if (res && res.success) {
+          empleadosSectorJefeGlobal = res.empleadosSectorJefe || [];
+          document.getElementById('buscadorEmpleadoDelegar').value = "";
+          renderPanelDelegacionJefe(empleadosSectorJefeGlobal);
+          alert(res.message);
+        } else {
+          alert(res ? res.message : "Error al actualizar delegación.");
+        }
+      });
+    }
+
+    // RRHH: DELEGACIÓN EXCLUSIVA JEFA RRHH
+    function renderPanelDelegacionRRHH(operarios) {
+      const cont = document.getElementById('listaOperariosDelegacionRRHH');
+      if (!operarios.length) {
+        cont.innerHTML = '<p class="text-muted small mb-0">No hay operarios cargados en la unidad RRHH.</p>';
+        return;
+      }
+      cont.innerHTML = '';
+      operarios.forEach(op => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2';
+        item.innerHTML = `
+          <div>
+            <strong>${op.nombre}</strong> <span class="text-muted small">(Leg. ${op.legajo})</span><br>
+            <span class="badge ${op.accesoRRHH ? 'bg-success' : 'bg-secondary'}">
+              ${op.accesoRRHH ? '✓ Acceso Completo RRHH Habilitado' : '🔒 Bloqueado (Solo vista empleado común)'}
+            </span>
+          </div>
+          <div>
+            ${op.accesoRRHH
+              ? `<button class="btn btn-outline-danger btn-sm fw-bold" onclick="cambiarDelegacionRRHH('${op.usuario}', false)">🚫 Bloquear Acceso</button>`
+              : `<button class="btn btn-success btn-sm fw-bold" onclick="cambiarDelegacionRRHH('${op.usuario}', true)">✓ Habilitar Funciones RRHH</button>`
+            }
+          </div>`;
+        cont.appendChild(item);
+      });
+    }
+
+    function cambiarDelegacionRRHH(usuarioOperario, habilitar) {
+      callGAS({
+        action: 'toggleDelegacionRRHH',
+        usuario: usuarioActual.usuario,
+        clave: claveSesionTemporal,
+        usuarioOperario: usuarioOperario,
+        habilitar: habilitar
+      }, function(res) {
+        if (res && res.success) {
+          renderPanelDelegacionRRHH(res.operariosDelegacion || []);
+          alert(res.message);
+        } else {
+          alert(res ? res.message : "Error al cambiar permiso.");
+        }
+      });
+    }
+
+    // RRHH: SALDOS DE VACACIONES
+    function poblarSelectorVacacionesRRHH() {
+      const sel = document.getElementById('rrhhSelectEmpleado');
+      const prev = sel.value;
+      sel.innerHTML = '';
+      empleadosRRHHGlobal.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.legajo;
+        opt.innerText = `${e.nombre} (${e.unidad} - ${e.modalidadDias}) | Saldo: ${e.diasVacaciones}d`;
+        sel.appendChild(opt);
+      });
+      if (prev) sel.value = prev;
+      cargarSaldoEmpleadoSeleccionado();
+    }
+
+    function cargarSaldoEmpleadoSeleccionado() {
+      const leg = document.getElementById('rrhhSelectEmpleado').value;
+      const emp = empleadosRRHHGlobal.find(e => e.legajo === leg);
+      if (emp) document.getElementById('rrhhInputDias').value = emp.diasVacaciones;
+    }
+
+    function guardarSaldoVacacionesRRHH() {
+      const leg = document.getElementById('rrhhSelectEmpleado').value;
+      const nuevosDias = document.getElementById('rrhhInputDias').value;
+      const btn = document.getElementById('btnGuardarSaldoRRHH');
+      btn.disabled = true;
+
+      callGAS({
+        action: 'actualizarSaldoVacaciones',
+        usuario: usuarioActual.usuario,
+        clave: claveSesionTemporal,
+        legajoEmpleado: leg,
+        nuevosDias: nuevosDias
+      }, function(res) {
+        btn.disabled = false;
+        if (res && res.success) {
+          empleadosRRHHGlobal = res.empleadosRRHHAdmin || empleadosRRHHGlobal;
+          poblarSelectorVacacionesRRHH();
+          const msg = document.getElementById('rrhhMsgSaldo');
+          msg.innerText = "✓ " + res.message;
+          msg.classList.remove('d-none');
+          setTimeout(() => msg.classList.add('d-none'), 3000);
+        } else {
+          alert(res ? res.message : "Error al guardar saldo.");
+        }
+      });
+    }
+
+    // RRHH: FERIADOS
+    function renderFeriadosRRHH() {
+      const cont = document.getElementById('listaFeriadosChips');
+      cont.innerHTML = '';
+      feriadosGlobal.sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(f => {
+        const span = document.createElement('span');
+        span.className = 'badge bg-light text-dark border p-2';
+        span.innerHTML = `${f.fecha} (${f.desc}) <a href="#" class="text-danger text-decoration-none ms-1" onclick="eliminarFeriadoRRHH('${f.fecha}'); return false;">✕</a>`;
+        cont.appendChild(span);
+      });
+    }
+
+    function agregarFeriadoRRHH() {
+      const fecha = document.getElementById('nuevoFeriadoFecha').value;
+      const desc = document.getElementById('nuevoFeriadoDesc').value.trim() || "Feriado";
+      if (!fecha) return;
+
+      callGAS({
+        action: 'gestionarFeriado',
+        subAction: 'agregar',
+        usuario: usuarioActual.usuario,
+        clave: claveSesionTemporal,
+        fecha: fecha,
+        descripcion: desc
+      }, function(res) {
+        if (res && res.success) {
+          feriadosGlobal = res.feriados || [];
+          renderFeriadosRRHH();
+          document.getElementById('nuevoFeriadoFecha').value = '';
+          document.getElementById('nuevoFeriadoDesc').value = '';
+        }
+      });
+    }
+
+    function eliminarFeriadoRRHH(fecha) {
+      callGAS({
+        action: 'gestionarFeriado',
+        subAction: 'eliminar',
+        usuario: usuarioActual.usuario,
+        clave: claveSesionTemporal,
+        fecha: fecha
+      }, function(res) {
+        if (res && res.success) {
+          feriadosGlobal = res.feriados || [];
+          renderFeriadosRRHH();
+        }
+      });
+    }
+
+    // CAMBIO DE CONTRASEÑA
+    document.getElementById('formCambiarClave').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const usuario = document.getElementById('ccUsuario').value.trim();
+      const actual = document.getElementById('ccActual').value.trim();
+      const nueva = document.getElementById('ccNueva').value.trim();
+      const confirmar = document.getElementById('ccConfirmar').value.trim();
+      const msgDiv = document.getElementById('ccMensaje');
+      const btn = document.getElementById('btnGuardarClave');
+
+      msgDiv.classList.add('d-none');
+      if (nueva !== confirmar) {
+        msgDiv.className = "alert alert-danger mt-3";
+        msgDiv.innerText = "La nueva clave y su confirmación no coinciden.";
+        msgDiv.classList.remove('d-none');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "Guardando...";
+
+      callGAS({ action: 'cambiarClave', usuario: usuario, claveActual: actual, claveNueva: nueva }, function(res) {
+        btn.disabled = false;
+        btn.innerText = "Actualizar Contraseña";
+        msgDiv.classList.remove('d-none');
+
+        if (res && res.success) {
+          msgDiv.className = "alert alert-success mt-3";
+          msgDiv.innerText = res.message;
+          claveSesionTemporal = nueva;
+          document.getElementById('alertaClaveDefecto').classList.add('d-none');
+          document.getElementById('formCambiarClave').reset();
+          if (usuarioActual) document.getElementById('ccUsuario').value = usuarioActual.usuario;
+        } else {
+          msgDiv.className = "alert alert-danger mt-3";
+          msgDiv.innerText = res ? res.message : "Error al actualizar.";
+        }
+      });
+    });
+
     async function cerrarSesion() {
       await limpiarCacheNavegador();
       usuarioActual = null;
-      preguntasActuales = [];
-      capacitacionActual = null;
-      
+      claveSesionTemporal = "";
       document.getElementById('iframeVideoIntro').src = "";
       document.getElementById('formLogin').reset();
       document.getElementById('usuarioInfo').innerText = '';
       document.getElementById('btnCerrarSesion').classList.add('d-none');
+      document.getElementById('btnAbrirCambioClave').classList.add('d-none');
+      document.getElementById('barraNavegacion').classList.add('d-none');
       document.getElementById('vistaVideoIntro').classList.add('d-none');
       document.getElementById('vistaCapacitaciones').classList.add('d-none');
+      document.getElementById('vistaPermisos').classList.add('d-none');
       document.getElementById('vistaLogin').classList.remove('d-none');
-      
-      window.location.reload(true);
     }
 
+    // --- FUNCIONES ORIGINALES DE CAPACITACIONES ---
     function renderCapacitaciones(lista) {
       const cont = document.getElementById('listaCapacitaciones');
       cont.innerHTML = '';
-
       lista.forEach(cap => {
         let badgeEstado = '';
         let botonExamen = '';
-
         if (cap.aprobado) {
           badgeEstado = `<span class="badge badge-status badge-aprobado">✓ Aprobado</span>`;
-          botonExamen = `
-            <button class="btn btn-outline-primary w-100 mb-2" onclick="iniciarExamen('${cap.titulo}')">Rendir Nuevamente</button>
-          `;
+          botonExamen = `<button class="btn btn-outline-primary w-100 mb-2" onclick="iniciarExamen('${cap.titulo}')">Rendir Nuevamente</button>`;
           if (cap.urlCertificado) {
-            botonExamen += `
-              <a href="${cap.urlCertificado}" target="_blank" class="btn btn-success w-100 fw-bold">
-                📄 Ver / Descargar Certificado
-              </a>`;
+            botonExamen += `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success w-100 fw-bold">📄 Ver / Descargar Certificado</a>`;
           }
         } else if (cap.bloqueado) {
           badgeEstado = `<span class="badge badge-status badge-bloqueado">Límite de 3 intentos alcanzado hoy</span>`;
@@ -356,8 +1486,7 @@
               <button class="btn btn-outline-secondary w-100 mb-2" onclick="verContenido('${cap.titulo}', '${cap.urlDrive}')">Ver Material (PDF)</button>
               ${botonExamen}
             </div>
-          </div>
-        `;
+          </div>`;
         cont.appendChild(col);
       });
     }
@@ -371,15 +1500,9 @@
     function iniciarExamen(titulo) {
       capacitacionActual = titulo;
       document.getElementById('tituloExamen').innerText = "Evaluación: " + titulo;
-      document.getElementById('cuerpoExamen').innerHTML = `
-        <div class="text-center py-5">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Generando examen aleatorio...</p>
-        </div>`;
+      document.getElementById('cuerpoExamen').innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Generando examen...</p></div>`;
       document.getElementById('footerExamen').classList.remove('d-none');
-
-      const modalExamen = new bootstrap.Modal(document.getElementById('modalExamen'));
-      modalExamen.show();
+      new bootstrap.Modal(document.getElementById('modalExamen')).show();
 
       callGAS({ action: 'generarExamen', titulo: titulo }, function(res) {
         if (res && res.success) {
@@ -395,37 +1518,27 @@
     function renderPreguntas(preguntas) {
       let html = '';
       preguntas.forEach((p, idx) => {
-        html += `
-          <div class="mb-4 p-3 border rounded bg-light">
-            <p class="fw-bold mb-2">${idx + 1}. ${p.enunciado}</p>`;
-        
+        html += `<div class="mb-4 p-3 border rounded bg-light"><p class="fw-bold mb-2">${idx + 1}. ${p.enunciado}</p>`;
         Object.keys(p.opciones).forEach(key => {
           const isMultiple = p.correctas.length > 1;
           const inputType = isMultiple ? 'checkbox' : 'radio';
           const inputName = isMultiple ? `p_${idx}_${key}` : `p_${idx}`;
-
           html += `
             <div class="form-check my-1">
               <input class="form-check-input" type="${inputType}" name="${inputName}" value="${key}" id="p_${idx}_${key}">
-              <label class="form-check-label" for="p_${idx}_${key}">
-                ${p.opciones[key]}
-              </label>
+              <label class="form-check-label" for="p_${idx}_${key}">${p.opciones[key]}</label>
             </div>`;
         });
-
         html += `</div>`;
       });
-
       document.getElementById('cuerpoExamen').innerHTML = html;
     }
 
     function evaluarExamen() {
       let correctasContador = 0;
-
       preguntasActuales.forEach((p, idx) => {
         const isMultiple = p.correctas.length > 1;
         let seleccionadas = [];
-
         if (isMultiple) {
           Object.keys(p.opciones).forEach(key => {
             const input = document.getElementById(`p_${idx}_${key}`);
@@ -435,59 +1548,38 @@
           const checked = document.querySelector(`input[name="p_${idx}"]:checked`);
           if (checked) seleccionadas.push(checked.value);
         }
-
         seleccionadas.sort();
         const correctas = [...p.correctas].sort();
-        if (JSON.stringify(seleccionadas) === JSON.stringify(correctas)) {
-          correctasContador++;
-        }
+        if (JSON.stringify(seleccionadas) === JSON.stringify(correctas)) correctasContador++;
       });
 
       const nota = Math.round((correctasContador / preguntasActuales.length) * 100);
-
-      document.getElementById('cuerpoExamen').innerHTML = `
-        <div class="text-center py-5">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Procesando resultado y generando certificado...</p>
-        </div>`;
+      document.getElementById('cuerpoExamen').innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Procesando resultado...</p></div>`;
       document.getElementById('footerExamen').classList.add('d-none');
 
       callGAS({
         action: 'guardarResultado',
         legajo: usuarioActual.legajo,
         nombre: usuarioActual.nombre,
-        dni: usuarioActual.dni,
+        dni: "",
         capacitacion: capacitacionActual,
         nota: nota
       }, function(res) {
         if (res && res.success) {
           const aprobado = res.estado === "Aprobado";
-          let alertClass = aprobado ? "alert-success" : "alert-danger";
-          let tituloRes = aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada";
-          
           let htmlRes = `
-            <div class="alert ${alertClass} text-center p-4">
-              <h4>${tituloRes}</h4>
-              <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo para aprobar: 60%)</p>`;
-
+            <div class="alert ${aprobado ? "alert-success" : "alert-danger"} text-center p-4">
+              <h4>${aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada"}</h4>
+              <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo: 60%)</p>`;
           if (aprobado && res.urlCertificado) {
-            htmlRes += `
-              <div class="mt-4">
-                <a href="${res.urlCertificado}" target="_blank" class="btn btn-success btn-lg fw-bold">
-                  🎓 Abrir / Descargar Certificado (PDF)
-                </a>
-              </div>`;
+            htmlRes += `<div class="mt-4"><a href="${res.urlCertificado}" target="_blank" class="btn btn-success btn-lg fw-bold">🎓 Abrir / Descargar Certificado (PDF)</a></div>`;
           }
-
           htmlRes += `</div>`;
           document.getElementById('cuerpoExamen').innerHTML = htmlRes;
 
-          callGAS({ action: 'login', usuario: usuarioActual.usuario, dni: usuarioActual.dni }, function(refreshRes) {
-            if (refreshRes && refreshRes.success) {
-              renderCapacitaciones(refreshRes.capacitaciones);
-            }
+          callGAS({ action: 'login', usuario: usuarioActual.usuario, clave: claveSesionTemporal }, function(refreshRes) {
+            if (refreshRes && refreshRes.success) renderCapacitaciones(refreshRes.capacitaciones);
           });
-
         } else {
           document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al guardar resultado.'}</div>`;
         }
