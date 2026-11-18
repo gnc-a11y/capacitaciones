@@ -1,0 +1,146 @@
+import { state } from './state.js';
+import { callGAS } from './api.js';
+
+export function renderCapacitaciones(lista) {
+  const cont = document.getElementById('listaCapacitaciones');
+  cont.innerHTML = '';
+  lista.forEach(cap => {
+    let badgeEstado = '';
+    let botonExamen = '';
+    if (cap.aprobado) {
+      badgeEstado = `<span class="badge badge-status badge-aprobado">✓ Aprobado</span>`;
+      botonExamen = `<button class="btn btn-outline-primary w-100 mb-2 btn-rendir-cap" data-titulo="${cap.titulo}">Rendir Nuevamente</button>`;
+      if (cap.urlCertificado) {
+        botonExamen += `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success w-100 fw-bold">📄 Ver / Descargar Certificado</a>`;
+      }
+    } else if (cap.bloqueado) {
+      badgeEstado = `<span class="badge badge-status badge-bloqueado">Límite de 3 intentos alcanzado hoy</span>`;
+      botonExamen = `<button class="btn btn-secondary w-100" disabled>Bloqueado por hoy</button>`;
+    } else {
+      badgeEstado = `<span class="badge badge-status badge-intentos">Intentos hoy: ${cap.intentosHoy}/3</span>`;
+      botonExamen = `<button class="btn btn-primary w-100 btn-rendir-cap" data-titulo="${cap.titulo}">Rendir Examen</button>`;
+    }
+
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-5';
+    col.innerHTML = `
+      <div class="card card-custom h-100 p-4 d-flex flex-column justify-content-between">
+        <div>
+          <h5 class="fw-bold text-dark mb-2">${cap.titulo}</h5>
+          <p class="text-muted small mb-3">${cap.descripcion}</p>
+          <div class="mb-3">${badgeEstado}</div>
+        </div>
+        <div>
+          <button class="btn btn-outline-secondary w-100 mb-2 btn-ver-material" data-titulo="${cap.titulo}" data-url="${cap.urlDrive}">Ver Material (PDF)</button>
+          ${botonExamen}
+        </div>
+      </div>`;
+    cont.appendChild(col);
+  });
+
+  cont.querySelectorAll('.btn-ver-material').forEach(btn => {
+    btn.addEventListener('click', () => verContenido(btn.dataset.titulo, btn.dataset.url));
+  });
+  cont.querySelectorAll('.btn-rendir-cap').forEach(btn => {
+    btn.addEventListener('click', () => iniciarExamen(btn.dataset.titulo));
+  });
+}
+
+function verContenido(titulo, url) {
+  document.getElementById('tituloContenido').innerText = titulo;
+  document.getElementById('btnLinkDrive').href = url;
+  new window.bootstrap.Modal(document.getElementById('modalContenido')).show();
+}
+
+function iniciarExamen(titulo) {
+  state.capacitacionActual = titulo;
+  document.getElementById('tituloExamen').innerText = "Evaluación: " + titulo;
+  document.getElementById('cuerpoExamen').innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Generando examen...</p></div>`;
+  document.getElementById('footerExamen').classList.remove('d-none');
+  new window.bootstrap.Modal(document.getElementById('modalExamen')).show();
+
+  callGAS({ action: 'generarExamen', titulo: titulo }, function(res) {
+    if (res && res.success) {
+      state.preguntasActuales = res.preguntas;
+      renderPreguntas(res.preguntas);
+    } else {
+      document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al cargar preguntas.'}</div>`;
+      document.getElementById('footerExamen').classList.add('d-none');
+    }
+  });
+}
+
+function renderPreguntas(preguntas) {
+  let html = '';
+  preguntas.forEach((p, idx) => {
+    html += `<div class="mb-4 p-3 border rounded bg-light"><p class="fw-bold mb-2">${idx + 1}. ${p.enunciado}</p>`;
+    Object.keys(p.opciones).forEach(key => {
+      const isMultiple = p.correctas.length > 1;
+      const inputType = isMultiple ? 'checkbox' : 'radio';
+      const inputName = isMultiple ? `p_${idx}_${key}` : `p_${idx}`;
+      html += `
+        <div class="form-check my-1">
+          <input class="form-check-input" type="${inputType}" name="${inputName}" value="${key}" id="p_${idx}_${key}">
+          <label class="form-check-label" for="p_${idx}_${key}">${p.opciones[key]}</label>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('cuerpoExamen').innerHTML = html;
+}
+
+export function initCapacitacionesEvents() {
+  document.getElementById('btnEnviarExamen').addEventListener('click', evaluarExamen);
+}
+
+function evaluarExamen() {
+  let correctasContador = 0;
+  state.preguntasActuales.forEach((p, idx) => {
+    const isMultiple = p.correctas.length > 1;
+    let seleccionadas = [];
+    if (isMultiple) {
+      Object.keys(p.opciones).forEach(key => {
+        const input = document.getElementById(`p_${idx}_${key}`);
+        if (input && input.checked) seleccionadas.push(key);
+      });
+    } else {
+      const checked = document.querySelector(`input[name="p_${idx}"]:checked`);
+      if (checked) seleccionadas.push(checked.value);
+    }
+    seleccionadas.sort();
+    const correctas = [...p.correctas].sort();
+    if (JSON.stringify(seleccionadas) === JSON.stringify(correctas)) correctasContador++;
+  });
+
+  const nota = Math.round((correctasContador / state.preguntasActuales.length) * 100);
+  document.getElementById('cuerpoExamen').innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Procesando resultado...</p></div>`;
+  document.getElementById('footerExamen').classList.add('d-none');
+
+  callGAS({
+    action: 'guardarResultado',
+    legajo: state.usuarioActual.legajo,
+    nombre: state.usuarioActual.nombre,
+    dni: "",
+    capacitacion: state.capacitacionActual,
+    nota: nota
+  }, function(res) {
+    if (res && res.success) {
+      const aprobado = res.estado === "Aprobado";
+      let htmlRes = `
+        <div class="alert ${aprobado ? "alert-success" : "alert-danger"} text-center p-4">
+          <h4>${aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada"}</h4>
+          <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo: 60%)</p>`;
+      if (aprobado && res.urlCertificado) {
+        htmlRes += `<div class="mt-4"><a href="${res.urlCertificado}" target="_blank" class="btn btn-success btn-lg fw-bold">🎓 Abrir / Descargar Certificado (PDF)</a></div>`;
+      }
+      htmlRes += `</div>`;
+      document.getElementById('cuerpoExamen').innerHTML = htmlRes;
+
+      callGAS({ action: 'login', usuario: state.usuarioActual.usuario, clave: state.claveSesionTemporal }, function(refreshRes) {
+        if (refreshRes && refreshRes.success) renderCapacitaciones(refreshRes.capacitaciones);
+      });
+    } else {
+      document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al guardar resultado.'}</div>`;
+    }
+  });
+}
