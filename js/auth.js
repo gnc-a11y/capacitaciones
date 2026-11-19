@@ -194,7 +194,7 @@ export function initAuthEvents() {
       sessionStorage.removeItem('ceez_sesion_clave');
     } catch (e) {}
 
-    await limpiarCacheNavegador();
+    await limpiarCacheNavegador(true);
     state.usuarioActual = null;
     state.claveSesionTemporal = "";
     document.getElementById('iframeVideoIntro').src = "";
