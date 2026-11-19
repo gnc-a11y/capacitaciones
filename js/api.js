@@ -1,6 +1,8 @@
 import { SCRIPT_URL } from './state.js';
 
 export async function callGAS(payload, callback) {
+  const payloadConMarcaTiempo = Object.assign({}, payload, { _ts: Date.now() });
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 35000);
@@ -8,8 +10,9 @@ export async function callGAS(payload, callback) {
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
+      cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payloadConMarcaTiempo),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -28,8 +31,8 @@ export async function callGAS(payload, callback) {
     return;
   }
 
-  const query = Object.keys(payload)
-    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(payload[k]))
+  const query = Object.keys(payloadConMarcaTiempo)
+    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(payloadConMarcaTiempo[k]))
     .join('&');
   const callbackName = 'gas_cb_' + Math.floor(Math.random() * 1000000);
   const script = document.createElement('script');
