@@ -86,17 +86,15 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   document.getElementById('badgeModalidadDias').innerText =
     data.modalidadDias === "HABILES" ? "Cómputo: Días Hábiles" : "Cómputo: Días Corridos";
 
-  const select = document.getElementById('permisoTipo');
-  const valorSeleccionadoPrevio = select.value;
-  select.innerHTML = '<option value="">Seleccione un motivo...</option>';
-  state.configPermisosGlobal.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.nombre;
-    opt.innerText = p.nombre;
-    select.appendChild(opt);
-  });
-  if (esActualizacionSilenciosa && valorSeleccionadoPrevio) {
-    select.value = valorSeleccionadoPrevio;
+ const select = document.getElementById('permisoTipo');
+  if (!esActualizacionSilenciosa || select.options.length <= 1) {
+    select.innerHTML = '<option value="">Seleccione un motivo...</option>';
+    state.configPermisosGlobal.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.nombre;
+      opt.innerText = p.nombre;
+      select.appendChild(opt);
+    });
   }
 
   const rolNorm = (data.rol || "").toLowerCase();
