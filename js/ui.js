@@ -1,7 +1,9 @@
-export async function limpiarCacheNavegador() {
+export async function limpiarCacheNavegador(borrarSesion = false) {
   try {
     localStorage.clear();
-    sessionStorage.clear();
+    if (borrarSesion) {
+      sessionStorage.clear();
+    }
   } catch (err) {}
 }
 
