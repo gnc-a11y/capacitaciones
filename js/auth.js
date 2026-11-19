@@ -4,6 +4,65 @@ import { limpiarCacheNavegador } from './ui.js';
 import { renderCapacitaciones } from './capacitaciones.js';
 import { inicializarModuloPermisos } from './permisos.js';
 
+let intervaloSincronizacion = null;
+let sincronizandoAhora = false;
+
+function usuarioEstaInteractuando() {
+  // Evitar refrescar si hay algún modal de Bootstrap abierto (examen, aprobar/rechazar, comprobante, cambio clave)
+  if (document.querySelector('.modal.show')) return true;
+
+  // Evitar refrescar si el usuario tiene el foco escribiendo en un input, textarea o select
+  const activo = document.activeElement;
+  if (activo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activo.tagName)) {
+    return true;
+  }
+  return false;
+}
+
+function sincronizarSesionSilenciosa() {
+  if (!state.usuarioActual || !state.claveSesionTemporal) return;
+  if (document.hidden || sincronizandoAhora || usuarioEstaInteractuando()) return;
+
+  sincronizandoAhora = true;
+  const usuario = state.usuarioActual.usuario;
+  const clave = state.claveSesionTemporal;
+
+  callGAS({ action: 'login', usuario: usuario, clave: clave }, function(res) {
+    sincronizandoAhora = false;
+
+    // Verificar que la sesión no haya cerrado mientras respondía el servidor
+    if (!state.usuarioActual || state.usuarioActual.usuario !== usuario) return;
+    if (usuarioEstaInteractuando()) return;
+
+    if (res && res.success) {
+      state.usuarioActual = res;
+      renderCapacitaciones(res.capacitaciones);
+      inicializarModuloPermisos(res);
+    }
+  });
+}
+
+function iniciarAutoSincronizacion() {
+  detenerAutoSincronizacion();
+  // Actualizar automáticamente cada 30 segundos mientras la pestaña esté visible
+  intervaloSincronizacion = setInterval(sincronizarSesionSilenciosa, 30000);
+}
+
+function detenerAutoSincronizacion() {
+  if (intervaloSincronizacion) {
+    clearInterval(intervaloSincronizacion);
+    intervaloSincronizacion = null;
+  }
+  sincronizandoAhora = false;
+}
+
+// Actualizar inmediatamente cuando el usuario vuelve a mirar la pestaña del portal
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && state.usuarioActual) {
+    sincronizarSesionSilenciosa();
+  }
+});
+
 export function initAuthEvents() {
   // Login
   document.getElementById('formLogin').addEventListener('submit', function(e) {
@@ -58,6 +117,9 @@ export function initAuthEvents() {
 
         renderCapacitaciones(res.capacitaciones);
         inicializarModuloPermisos(res);
+
+        // Activar sincronización automática en segundo plano
+        iniciarAutoSincronizacion();
       } else {
         errDiv.innerText = (res && res.message) ? res.message : "Usuario o clave incorrectos.";
         errDiv.classList.remove('d-none');
@@ -107,6 +169,7 @@ export function initAuthEvents() {
 
   // Cerrar sesión
   document.getElementById('btnCerrarSesion').addEventListener('click', async function() {
+    detenerAutoSincronizacion();
     await limpiarCacheNavegador();
     state.usuarioActual = null;
     state.claveSesionTemporal = "";
