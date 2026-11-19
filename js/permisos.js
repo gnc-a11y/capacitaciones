@@ -74,7 +74,7 @@ function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
   }
 }
 
-export function inicializarModuloPermisos(data) {
+export function inicializarModuloPermisos(data, esActualizacionSilenciosa = false) {
   state.configPermisosGlobal = data.permisosConfig || [];
   state.feriadosGlobal = data.feriados || [];
   state.empleadosRRHHGlobal = data.empleadosRRHHAdmin || [];
@@ -87,6 +87,7 @@ export function inicializarModuloPermisos(data) {
     data.modalidadDias === "HABILES" ? "Cómputo: Días Hábiles" : "Cómputo: Días Corridos";
 
   const select = document.getElementById('permisoTipo');
+  const valorSeleccionadoPrevio = select.value;
   select.innerHTML = '<option value="">Seleccione un motivo...</option>';
   state.configPermisosGlobal.forEach(p => {
     const opt = document.createElement('option');
@@ -94,6 +95,9 @@ export function inicializarModuloPermisos(data) {
     opt.innerText = p.nombre;
     select.appendChild(opt);
   });
+  if (esActualizacionSilenciosa && valorSeleccionadoPrevio) {
+    select.value = valorSeleccionadoPrevio;
+  }
 
   const rolNorm = (data.rol || "").toLowerCase();
   const esJefaRRHH = rolNorm === 'jefa_rrhh';
@@ -118,7 +122,6 @@ export function inicializarModuloPermisos(data) {
   colBandeja.className = 'col-12 col-lg-7';
 
   if (esGerente) {
-    // Gerencia: No pide permisos ni es supervisado; aprueba Jefaturas y Jefa RRHH
     itemPers.classList.add('d-none');
     itemJef.classList.remove('d-none');
     itemHist.classList.remove('d-none');
@@ -152,23 +155,27 @@ export function inicializarModuloPermisos(data) {
 
   if (tieneModuloRRHH) {
     itemRRHH.classList.remove('d-none');
-    poblarSelectorVacacionesRRHH();
-    renderFeriadosRRHH();
+    if (!esActualizacionSilenciosa) {
+      poblarSelectorVacacionesRRHH();
+      renderFeriadosRRHH();
+    }
   } else if (esJefe || esDelegadoJefe || esGerente) {
     itemHist.classList.remove('d-none');
-    renderHistorialSupervision(state.historialSupervisionGlobal);
+    filtrarHistorialSupervision();
   }
 
   renderMisSolicitudes(data.misSolicitudes || []);
   renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, data.bandejaAprobacion || [], state.bandejaRRHHGlobal);
 
-  // Pestaña inicial inteligente según rol
-  if (tieneModuloRRHH) {
-    cambiarSubPestana('rrhh');
-  } else if (esGerente || esJefe || esDelegadoJefe) {
-    cambiarSubPestana('jefatura');
-  } else {
-    cambiarSubPestana('personal');
+  // Solo cambiar a la pestaña inicial al loguearse, nunca en medio de un refresco automático
+  if (!esActualizacionSilenciosa) {
+    if (tieneModuloRRHH) {
+      cambiarSubPestana('rrhh');
+    } else if (esGerente || esJefe || esDelegadoJefe) {
+      cambiarSubPestana('jefatura');
+    } else {
+      cambiarSubPestana('personal');
+    }
   }
 }
 
@@ -343,6 +350,12 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
     }
 
     const cont = document.getElementById('listaBandejaJefe');
+    // Conservar observaciones que el jefe esté escribiendo antes de redibujar
+    const obsPrevias = {};
+    cont.querySelectorAll('input[id^="obs_"]').forEach(inp => {
+      if (inp.value) obsPrevias[inp.id] = inp.value;
+    });
+
     if (!bandejaJefe.length) {
       cont.innerHTML = '<p class="text-muted small mb-0">No tenés solicitudes pendientes de aprobación.</p>';
     } else {
@@ -384,6 +397,11 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
       });
       cont.innerHTML = html;
 
+      Object.keys(obsPrevias).forEach(idInp => {
+        const el = document.getElementById(idInp);
+        if (el) el.value = obsPrevias[idInp];
+      });
+
       cont.querySelectorAll('.btn-resolver').forEach(btn => {
         btn.addEventListener('click', () => resolverTramite(btn.dataset.id, btn.dataset.dec));
       });
@@ -398,7 +416,7 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
     } else {
       badgeSubRRHH.classList.add('d-none');
     }
-    renderListaBandejaRRHH(bandejaRRHH);
+    filtrarBandejaRRHH();
   }
 
   if (totalPendientes > 0) {
@@ -454,7 +472,8 @@ function renderListaBandejaRRHH(lista) {
 }
 
 function filtrarBandejaRRHH() {
-  const q = document.getElementById('filtroBandejaRRHHInput').value.trim().toLowerCase();
+  const input = document.getElementById('filtroBandejaRRHHInput');
+  const q = input ? input.value.trim().toLowerCase() : '';
   if (!q) {
     renderListaBandejaRRHH(state.bandejaRRHHGlobal);
     return;
@@ -500,7 +519,8 @@ function renderHistorialSupervision(lista) {
 }
 
 function filtrarHistorialSupervision() {
-  const q = document.getElementById('filtroHistorialInput').value.trim().toLowerCase();
+  const input = document.getElementById('filtroHistorialInput');
+  const q = input ? input.value.trim().toLowerCase() : '';
   if (!q) {
     renderHistorialSupervision(state.historialSupervisionGlobal);
     return;
@@ -565,7 +585,7 @@ function resolverTramite(idTramite, decision) {
       }
       if (res.historialSupervision) {
         state.historialSupervisionGlobal = res.historialSupervision;
-        renderHistorialSupervision(state.historialSupervisionGlobal);
+        filtrarHistorialSupervision();
       }
       renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, res.bandejaAprobacion || [], state.bandejaRRHHGlobal);
     } else {
