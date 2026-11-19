@@ -53,9 +53,8 @@ function aplicarDatosSesionEnPantalla(res, clave, esInicioInicial = false) {
     if (iframe) iframe.src = videoUrl;
   }
 
-  renderCapacitaciones(res.capacitaciones);
-  inicializarModuloPermisos(res);
-}
+ renderCapacitaciones(res.capacitaciones);
+inicializarModuloPermisos(res, !esInicioInicial);
 
 export function sincronizarSesionSilenciosa() {
   if (!state.usuarioActual || !state.claveSesionTemporal) return;
