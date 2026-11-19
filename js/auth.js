@@ -7,11 +7,30 @@ import { inicializarModuloPermisos } from './permisos.js';
 let intervaloSincronizacion = null;
 let sincronizandoAhora = false;
 
-function usuarioEstaInteractuando() {
-  // Evitar refrescar si hay algún modal de Bootstrap abierto (examen, aprobar/rechazar, comprobante, cambio clave)
-  if (document.querySelector('.modal.show')) return true;
+function crearBotonActualizarSiNoExiste() {
+  let btn = document.getElementById('btnSincronizarManual');
+  if (btn) return btn;
 
-  // Evitar refrescar si el usuario tiene el foco escribiendo en un input, textarea o select
+  const btnCerrar = document.getElementById('btnCerrarSesion');
+  if (!btnCerrar || !btnCerrar.parentNode) return null;
+
+  btn = document.createElement('button');
+  btn.id = 'btnSincronizarManual';
+  btn.type = 'button';
+  btn.className = 'btn btn-outline-primary btn-sm ms-2';
+  btn.innerHTML = '🔄 Actualizar';
+  btn.title = 'Actualizar solicitudes y bandejas ahora';
+
+  btn.addEventListener('click', function() {
+    sincronizarSesionSilenciosa(true);
+  });
+
+  btnCerrar.parentNode.insertBefore(btn, btnCerrar);
+  return btn;
+}
+
+function usuarioEstaInteractuando() {
+  if (document.querySelector('.modal.show')) return true;
   const activo = document.activeElement;
   if (activo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activo.tagName)) {
     return true;
@@ -19,20 +38,32 @@ function usuarioEstaInteractuando() {
   return false;
 }
 
-function sincronizarSesionSilenciosa() {
+export function sincronizarSesionSilenciosa(forzadoManual = false) {
   if (!state.usuarioActual || !state.claveSesionTemporal) return;
-  if (document.hidden || sincronizandoAhora || usuarioEstaInteractuando()) return;
+  if (sincronizandoAhora) return;
+  if (!forzadoManual && (document.hidden || usuarioEstaInteractuando())) return;
 
   sincronizandoAhora = true;
+  const btn = document.getElementById('btnSincronizarManual');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Actualizando...';
+  }
+
   const usuario = state.usuarioActual.usuario;
   const clave = state.claveSesionTemporal;
 
   callGAS({ action: 'login', usuario: usuario, clave: clave }, function(res) {
     sincronizandoAhora = false;
+    const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
-    // Verificar que la sesión no haya cerrado mientras respondía el servidor
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `🔄 Actualizar (${hora})`;
+    }
+
     if (!state.usuarioActual || state.usuarioActual.usuario !== usuario) return;
-    if (usuarioEstaInteractuando()) return;
+    if (!forzadoManual && usuarioEstaInteractuando()) return;
 
     if (res && res.success) {
       state.usuarioActual = res;
@@ -44,8 +75,10 @@ function sincronizarSesionSilenciosa() {
 
 function iniciarAutoSincronizacion() {
   detenerAutoSincronizacion();
-  // Actualizar automáticamente cada 30 segundos mientras la pestaña esté visible
-  intervaloSincronizacion = setInterval(sincronizarSesionSilenciosa, 30000);
+  // Sincroniza automáticamente cada 25 segundos
+  intervaloSincronizacion = setInterval(function() {
+    sincronizarSesionSilenciosa(false);
+  }, 25000);
 }
 
 function detenerAutoSincronizacion() {
@@ -56,14 +89,16 @@ function detenerAutoSincronizacion() {
   sincronizandoAhora = false;
 }
 
-// Actualizar inmediatamente cuando el usuario vuelve a mirar la pestaña del portal
 document.addEventListener('visibilitychange', function() {
   if (!document.hidden && state.usuarioActual) {
-    sincronizarSesionSilenciosa();
+    sincronizarSesionSilenciosa(false);
   }
 });
 
 export function initAuthEvents() {
+  const btnSync = crearBotonActualizarSiNoExiste();
+  if (btnSync) btnSync.classList.add('d-none');
+
   // Login
   document.getElementById('formLogin').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -95,6 +130,13 @@ export function initAuthEvents() {
         infoBadge.innerText = `${res.nombre} | ${res.unidad} (${etiquetaRol})`;
         infoBadge.classList.remove('d-none');
 
+        const btnActualizar = crearBotonActualizarSiNoExiste();
+        if (btnActualizar) {
+          const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+          btnActualizar.innerHTML = `🔄 Actualizar (${hora})`;
+          btnActualizar.classList.remove('d-none');
+        }
+
         document.getElementById('btnCerrarSesion').classList.remove('d-none');
         document.getElementById('btnAbrirCambioClave').classList.remove('d-none');
         document.getElementById('ccUsuario').value = res.usuario;
@@ -118,7 +160,6 @@ export function initAuthEvents() {
         renderCapacitaciones(res.capacitaciones);
         inicializarModuloPermisos(res);
 
-        // Activar sincronización automática en segundo plano
         iniciarAutoSincronizacion();
       } else {
         errDiv.innerText = (res && res.message) ? res.message : "Usuario o clave incorrectos.";
@@ -179,6 +220,9 @@ export function initAuthEvents() {
     const infoBadge = document.getElementById('usuarioInfo');
     infoBadge.innerText = '';
     infoBadge.classList.add('d-none');
+
+    const btnActualizar = document.getElementById('btnSincronizarManual');
+    if (btnActualizar) btnActualizar.classList.add('d-none');
 
     document.getElementById('btnCerrarSesion').classList.add('d-none');
     document.getElementById('btnAbrirCambioClave').classList.add('d-none');
