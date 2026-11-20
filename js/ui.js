@@ -58,4 +58,15 @@ export function initUIEvents() {
   document.getElementById('subTabJefatura').addEventListener('click', () => cambiarSubPestana('jefatura'));
   document.getElementById('subTabRRHH').addEventListener('click', () => cambiarSubPestana('rrhh'));
   document.getElementById('subTabHistorialGlobal').addEventListener('click', () => cambiarSubPestana('historial'));
+
+  document.querySelectorAll('[data-toggle-pass]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-toggle-pass');
+      const input = document.getElementById(targetId);
+      if (!input) return;
+      const estaOculto = input.type === 'password';
+      input.type = estaOculto ? 'text' : 'password';
+      btn.textContent = estaOculto ? '🙈' : '👁️';
+    });
+  });
 }
