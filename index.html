@@ -48,7 +48,10 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Clave (DNI por defecto)</label>
-              <input type="password" id="loginClave" class="form-control" placeholder="Ingrese su clave o DNI" required autocomplete="off">
+              <div class="input-group">
+                <input type="password" id="loginClave" class="form-control" placeholder="Ingrese su clave o DNI" required autocomplete="off">
+                <button class="btn btn-outline-secondary" type="button" data-toggle-pass="loginClave" tabindex="-1" title="Mostrar u ocultar clave">👁️</button>
+              </div>
             </div>
             <button type="submit" id="btnIngresar" class="btn btn-primary w-100 fw-bold py-2">Ingresar</button>
           </form>
@@ -201,7 +204,10 @@
                       <input type="text" id="firmaUsuario" class="form-control form-control-sm" placeholder="Usuario" required autocomplete="off" autocapitalize="none">
                     </div>
                     <div class="col-6">
-                      <input type="password" id="firmaClave" class="form-control form-control-sm" placeholder="Clave" required autocomplete="off">
+                      <div class="input-group input-group-sm">
+                        <input type="password" id="firmaClave" class="form-control" placeholder="Clave" required autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" data-toggle-pass="firmaClave" tabindex="-1" title="Mostrar u ocultar clave">👁️</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -412,15 +418,24 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Clave Actual (o DNI si nunca la cambiaste)</label>
-              <input type="password" id="ccActual" class="form-control" required autocomplete="off">
+              <div class="input-group">
+                <input type="password" id="ccActual" class="form-control" required autocomplete="off">
+                <button class="btn btn-outline-secondary" type="button" data-toggle-pass="ccActual" tabindex="-1" title="Mostrar u ocultar clave">👁️</button>
+              </div>
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Nueva Clave (mínimo 4 caracteres)</label>
-              <input type="password" id="ccNueva" class="form-control" minlength="4" required autocomplete="off">
+              <div class="input-group">
+                <input type="password" id="ccNueva" class="form-control" minlength="4" required autocomplete="off">
+                <button class="btn btn-outline-secondary" type="button" data-toggle-pass="ccNueva" tabindex="-1" title="Mostrar u ocultar clave">👁️</button>
+              </div>
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Confirmar Nueva Clave</label>
-              <input type="password" id="ccConfirmar" class="form-control" minlength="4" required autocomplete="off">
+              <div class="input-group">
+                <input type="password" id="ccConfirmar" class="form-control" minlength="4" required autocomplete="off">
+                <button class="btn btn-outline-secondary" type="button" data-toggle-pass="ccConfirmar" tabindex="-1" title="Mostrar u ocultar clave">👁️</button>
+              </div>
             </div>
             <button type="submit" id="btnGuardarClave" class="btn btn-primary w-100 fw-bold">Actualizar Contraseña</button>
           </form>
@@ -463,6 +478,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script type="module" src="js/main.js?v=2.0"></script>
+  <script type="module" src="js/main.js?v=2.1"></script>
 </body>
 </html>
