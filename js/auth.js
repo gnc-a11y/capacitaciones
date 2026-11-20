@@ -7,14 +7,23 @@ import { inicializarModuloPermisos } from './permisos.js';
 let intervaloSincronizacion = null;
 let sincronizandoAhora = false;
 
-function aplicarDatosSesionEnPantalla(res, clave, esInicioInicial = false) {
-  state.usuarioActual = res;
-  state.claveSesionTemporal = clave;
+function limpiarDatosSesionLocal() {
+  try {
+    sessionStorage.removeItem('ceez_sesion_usuario');
+    sessionStorage.removeItem('ceez_sesion_token');
+    sessionStorage.removeItem('ceez_sesion_clave');
+  } catch (e) {}
+}
 
-  // Guardar en sessionStorage (propio de cada pestaña: sobrevive a F5 y no mezcla pestañas)
+function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
+  state.usuarioActual = res;
+  state.tokenSesion = token || res.token || state.tokenSesion;
+  state.claveSesionTemporal = "";
+
   try {
     sessionStorage.setItem('ceez_sesion_usuario', res.usuario);
-    sessionStorage.setItem('ceez_sesion_clave', clave);
+    sessionStorage.setItem('ceez_sesion_token', state.tokenSesion);
+    sessionStorage.removeItem('ceez_sesion_clave');
   } catch (e) {}
 
   let etiquetaRol = res.rol;
@@ -58,31 +67,28 @@ function aplicarDatosSesionEnPantalla(res, clave, esInicioInicial = false) {
 }
 
 export function sincronizarSesionSilenciosa() {
-  if (!state.usuarioActual || !state.claveSesionTemporal) return;
+  if (!state.usuarioActual || !state.tokenSesion) return;
   if (sincronizandoAhora) return;
-
-  // Solo pausar si hay un modal abierto (ej. rindiendo examen o subiendo archivo)
   if (document.querySelector('.modal.show')) return;
 
   sincronizandoAhora = true;
   const usuario = state.usuarioActual.usuario;
-  const clave = state.claveSesionTemporal;
+  const token = state.tokenSesion;
 
-  callGAS({ action: 'login', usuario: usuario, clave: clave }, function(res) {
+  callGAS({ action: 'sincronizarSesion', token: token }, function(res) {
     sincronizandoAhora = false;
 
     if (!state.usuarioActual || state.usuarioActual.usuario !== usuario) return;
     if (document.querySelector('.modal.show')) return;
 
     if (res && res.success) {
-      aplicarDatosSesionEnPantalla(res, clave, false);
+      aplicarDatosSesionEnPantalla(res, token, false);
     }
   });
 }
 
 function iniciarAutoSincronizacion() {
   detenerAutoSincronizacion();
-  // Sincroniza automáticamente cada 15 segundos sin necesidad de tocar F5
   intervaloSincronizacion = setInterval(sincronizarSesionSilenciosa, 15000);
 }
 
@@ -101,28 +107,29 @@ document.addEventListener('visibilitychange', function() {
 });
 
 export function initAuthEvents() {
-  // Restaurar sesión automáticamente si el usuario apretó F5 en esta pestaña
   try {
-    const usrGuardado = sessionStorage.getItem('ceez_sesion_usuario');
-    const claveGuardada = sessionStorage.getItem('ceez_sesion_clave');
-    if (usrGuardado && claveGuardada) {
-      callGAS({ action: 'login', usuario: usrGuardado, clave: claveGuardada }, function(res) {
+    const tokenGuardado = sessionStorage.getItem('ceez_sesion_token');
+    if (tokenGuardado) {
+      state.tokenSesion = tokenGuardado;
+      callGAS({ action: 'sincronizarSesion', token: tokenGuardado }, function(res) {
         if (res && res.success) {
-          aplicarDatosSesionEnPantalla(res, claveGuardada, true);
+          aplicarDatosSesionEnPantalla(res, tokenGuardado, true);
           iniciarAutoSincronizacion();
         } else {
-          sessionStorage.removeItem('ceez_sesion_usuario');
-          sessionStorage.removeItem('ceez_sesion_clave');
+          state.tokenSesion = "";
+          limpiarDatosSesionLocal();
         }
       });
+    } else {
+      limpiarDatosSesionLocal();
     }
   } catch (e) {}
 
-  // Login manual
   document.getElementById('formLogin').addEventListener('submit', function(e) {
     e.preventDefault();
     const usuario = document.getElementById('loginUsuario').value.trim();
-    const clave = document.getElementById('loginClave').value.trim();
+    const claveInput = document.getElementById('loginClave');
+    const clave = claveInput.value.trim();
     const btn = document.getElementById('btnIngresar');
     const errDiv = document.getElementById('loginError');
 
@@ -135,8 +142,9 @@ export function initAuthEvents() {
       btn.innerText = "Ingresar";
 
       if (res && res.success) {
-        document.getElementById('loginClave').value = "";
-        aplicarDatosSesionEnPantalla(res, clave, true);
+        claveInput.value = "";
+        claveInput.type = "password";
+        aplicarDatosSesionEnPantalla(res, res.token, true);
         iniciarAutoSincronizacion();
       } else {
         errDiv.innerText = (res && res.message) ? res.message : "Usuario o clave incorrectos.";
@@ -145,7 +153,6 @@ export function initAuthEvents() {
     });
   });
 
-  // Cambio de clave
   document.getElementById('formCambiarClave').addEventListener('submit', function(e) {
     e.preventDefault();
     const usuario = document.getElementById('ccUsuario').value.trim();
@@ -174,8 +181,6 @@ export function initAuthEvents() {
       if (res && res.success) {
         msgDiv.className = "alert alert-success mt-3";
         msgDiv.innerText = res.message;
-        state.claveSesionTemporal = nueva;
-        try { sessionStorage.setItem('ceez_sesion_clave', nueva); } catch (e) {}
         document.getElementById('alertaClaveDefecto').classList.add('d-none');
         document.getElementById('formCambiarClave').reset();
         if (state.usuarioActual) document.getElementById('ccUsuario').value = state.usuarioActual.usuario;
@@ -186,19 +191,24 @@ export function initAuthEvents() {
     });
   });
 
-  // Cerrar sesión
   document.getElementById('btnCerrarSesion').addEventListener('click', async function() {
     detenerAutoSincronizacion();
-    try {
-      sessionStorage.removeItem('ceez_sesion_usuario');
-      sessionStorage.removeItem('ceez_sesion_clave');
-    } catch (e) {}
+    const tokenSaliente = state.tokenSesion;
 
+    if (tokenSaliente) {
+      callGAS({ action: 'logout', token: tokenSaliente }, function() {});
+    }
+
+    limpiarDatosSesionLocal();
     await limpiarCacheNavegador(true);
+
     state.usuarioActual = null;
+    state.tokenSesion = "";
     state.claveSesionTemporal = "";
     document.getElementById('iframeVideoIntro').src = "";
     document.getElementById('formLogin').reset();
+    const loginClave = document.getElementById('loginClave');
+    if (loginClave) loginClave.type = "password";
 
     const infoBadge = document.getElementById('usuarioInfo');
     infoBadge.innerText = '';
