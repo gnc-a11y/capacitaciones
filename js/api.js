@@ -1,7 +1,13 @@
-import { SCRIPT_URL } from './state.js';
+import { SCRIPT_URL, state } from './state.js';
 
 export async function callGAS(payload, callback) {
-  const payloadConMarcaTiempo = Object.assign({}, payload, { _ts: Date.now() });
+  const tokenActivo = state.tokenSesion || sessionStorage.getItem('ceez_sesion_token') || "";
+  const payloadConMarcaTiempo = Object.assign(
+    {},
+    tokenActivo ? { token: tokenActivo } : {},
+    payload,
+    { _ts: Date.now() }
+  );
 
   try {
     const controller = new AbortController();
