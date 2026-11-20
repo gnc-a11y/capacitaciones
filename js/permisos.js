@@ -13,6 +13,15 @@ function obtenerTipoDiasEfectivo(confPermiso) {
   return confPermiso.tipoDias;
 }
 
+function esTipoCancelacion(confPermiso) {
+  if (!confPermiso) return false;
+  return (confPermiso.nombre || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .includes("cancelacion");
+}
+
 function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
   const [y1, m1, d1] = fechaInicioStr.split('-').map(Number);
   const [y2, m2, d2] = fechaFinStr.split('-').map(Number);
@@ -77,6 +86,7 @@ function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
 export function inicializarModuloPermisos(data, esActualizacionSilenciosa = false) {
   state.configPermisosGlobal = data.permisosConfig || [];
   state.feriadosGlobal = data.feriados || [];
+  state.misSolicitudesGlobal = data.misSolicitudes || [];
   state.empleadosRRHHGlobal = data.empleadosRRHHAdmin || [];
   state.bandejaRRHHGlobal = data.bandejaRRHH || [];
   state.historialSupervisionGlobal = data.historialSupervision || [];
@@ -86,7 +96,7 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   document.getElementById('badgeModalidadDias').innerText =
     data.modalidadDias === "HABILES" ? "Cómputo: Días Hábiles" : "Cómputo: Días Corridos";
 
- const select = document.getElementById('permisoTipo');
+  const select = document.getElementById('permisoTipo');
   if (!esActualizacionSilenciosa || select.options.length <= 1) {
     select.innerHTML = '<option value="">Seleccione un motivo...</option>';
     state.configPermisosGlobal.forEach(p => {
@@ -95,6 +105,16 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
       opt.innerText = p.nombre;
       select.appendChild(opt);
     });
+  }
+
+  // Si tiene abierto el panel de saldo de vacaciones, mantener el número actualizado tras sincronización
+  const selActual = select.value;
+  const confActual = state.configPermisosGlobal.find(p => p.nombre === selActual);
+  if (confActual && confActual.esVacaciones) {
+    const mod = obtenerTipoDiasEfectivo(confActual);
+    const etiq = mod === "HABILES" ? "días hábiles" : "días corridos";
+    const spanSaldo = document.getElementById('textoSaldoDias');
+    if (spanSaldo) spanSaldo.innerText = `${state.usuarioActual.diasVacaciones} ${etiq}`;
   }
 
   const rolNorm = (data.rol || "").toLowerCase();
@@ -162,10 +182,9 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
     filtrarHistorialSupervision();
   }
 
-  renderMisSolicitudes(data.misSolicitudes || []);
+  renderMisSolicitudes(state.misSolicitudesGlobal);
   renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, data.bandejaAprobacion || [], state.bandejaRRHHGlobal);
 
-  // Solo cambiar a la pestaña inicial al loguearse, nunca en medio de un refresco automático
   if (!esActualizacionSilenciosa) {
     if (tieneModuloRRHH) {
       cambiarSubPestana('rrhh');
@@ -177,18 +196,83 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   }
 }
 
+function alSeleccionarTramiteCancelar() {
+  const idSel = document.getElementById('permisoTramiteCancelar').value;
+  const tramite = (state.misSolicitudesGlobal || []).find(s => s.idTramite === idSel);
+  const infoCancel = document.getElementById('infoTramiteCancelar');
+  const inputDesde = document.getElementById('permisoDesde');
+  const inputHasta = document.getElementById('permisoHasta');
+  const inputDias = document.getElementById('permisoDias');
+  const btnEnviar = document.getElementById('btnEnviarPermiso');
+
+  if (!tramite) {
+    btnEnviar.disabled = true;
+    return;
+  }
+
+  inputDesde.value = tramite.fechaDesdeISO;
+  inputHasta.value = tramite.fechaHastaISO;
+  inputDesde.readOnly = true;
+  inputHasta.readOnly = true;
+  inputDias.value = tramite.cantDias;
+  btnEnviar.disabled = false;
+
+  document.getElementById('desgloseCalculoDias').innerHTML =
+    `Corresponde al trámite original <strong>${tramite.idTramite}</strong> (${tramite.cantDias} día/s).`;
+
+  infoCancel.innerHTML = tramite.esVacaciones
+    ? `🏖️ Este pedido descontó <strong>${tramite.cantDias} día(s) de vacaciones</strong>. Al aprobarse la cancelación, volverán a tu saldo.`
+    : `📄 Licencia original: <strong>${tramite.tipoPermiso}</strong>.`;
+}
+
 function actualizarInfoPermiso() {
   const sel = document.getElementById('permisoTipo').value;
   const infoDiv = document.getElementById('infoReglaPermiso');
   const panelVac = document.getElementById('panelSaldoVacaciones');
+  const panelCan = document.getElementById('panelCancelacionPedido');
+  const inputDesde = document.getElementById('permisoDesde');
+  const inputHasta = document.getElementById('permisoHasta');
   const found = state.configPermisosGlobal.find(p => p.nombre === sel);
 
   panelVac.classList.add('d-none');
+  if (panelCan) panelCan.classList.add('d-none');
   document.getElementById('errorSaldoExcedido').classList.add('d-none');
+  inputDesde.readOnly = false;
+  inputHasta.readOnly = false;
 
   if (!found) {
     infoDiv.innerText = '';
     calcularDiasPermiso();
+    return;
+  }
+
+  if (esTipoCancelacion(found)) {
+    infoDiv.innerText = '⚠️ Seleccioná el pedido aprobado que deseás anular. Si era de vacaciones, al aprobarse se te devolverán los días.';
+    if (panelCan) panelCan.classList.remove('d-none');
+
+    const selTramite = document.getElementById('permisoTramiteCancelar');
+    const aprobados = (state.misSolicitudesGlobal || []).filter(s =>
+      (s.estado === 'Aprobado_RRHH' || s.estado === 'Finalizado_RRHH') &&
+      !s.tipoPermiso.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("cancelacion")
+    );
+
+    if (!aprobados.length) {
+      selTramite.innerHTML = '<option value="">No tenés solicitudes aprobadas disponibles para cancelar...</option>';
+      document.getElementById('infoTramiteCancelar').innerHTML = '';
+      inputDesde.value = '';
+      inputHasta.value = '';
+      document.getElementById('permisoDias').value = '';
+      document.getElementById('desgloseCalculoDias').innerHTML = '';
+      document.getElementById('btnEnviarPermiso').disabled = true;
+      return;
+    }
+
+    selTramite.innerHTML = aprobados.map(s =>
+      `<option value="${s.idTramite}">${s.idTramite} — ${s.tipoPermiso} (${s.fechaDesde} al ${s.fechaHasta} - ${s.cantDias}d)</option>`
+    ).join('');
+
+    selTramite.onchange = alSeleccionarTramiteCancelar;
+    alSeleccionarTramiteCancelar();
     return;
   }
 
@@ -212,10 +296,12 @@ function actualizarInfoPermiso() {
 }
 
 function calcularDiasPermiso() {
-  const d1 = document.getElementById('permisoDesde').value;
-  const d2 = document.getElementById('permisoHasta').value;
   const sel = document.getElementById('permisoTipo').value;
   const found = state.configPermisosGlobal.find(p => p.nombre === sel);
+  if (esTipoCancelacion(found)) return;
+
+  const d1 = document.getElementById('permisoDesde').value;
+  const d2 = document.getElementById('permisoHasta').value;
   const modalidad = obtenerTipoDiasEfectivo(found);
 
   const inputDias = document.getElementById('permisoDias');
@@ -280,7 +366,7 @@ function renderBloqueComprobanteHtml(s, esElSolicitante, esRRHH) {
     html += `<a href="${s.urlNotaPDF}" target="_blank" class="btn btn-outline-success btn-sm fw-bold">🖨️ Ver / Imprimir Nota PDF (Firma)</a>`;
   }
 
-  if (esElSolicitante && s.requiereComprobante && s.estado !== 'Rechazado') {
+  if (esElSolicitante && s.requiereComprobante && s.estado !== 'Rechazado' && s.estado !== 'Anulado') {
     const textoBtn = s.urlComprobante ? '🔄 Reemplazar Comprobante' : '📎 Subir Comprobante (Foto/PDF)';
     html += `<button type="button" class="btn btn-outline-dark btn-sm fw-semibold btn-subir-comp" data-id="${s.idTramite}">${textoBtn}</button>`;
   }
@@ -302,6 +388,7 @@ function renderMisSolicitudes(lista) {
     if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">✓ Aprobado (En RRHH)</span>';
     if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">✓ Documentado por RRHH</span>';
     if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">✕ Denegado (Elegir otra fecha)</span>';
+    if (s.estado === 'Anulado') badge = '<span class="badge bg-secondary">🚫 Anulado</span>';
 
     html += `
       <div class="tramite-item">
@@ -313,6 +400,7 @@ function renderMisSolicitudes(lista) {
           Trámite: <strong>${s.idTramite}</strong> | Del <strong>${s.fechaDesde}</strong> al <strong>${s.fechaHasta}</strong> 
           (<strong>${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''}</strong>)
         </div>
+        ${s.motivo ? `<div class="small text-secondary mt-1">${s.motivo}</div>` : ''}
         ${s.obsResolucion ? `<div class="small text-dark mt-2 bg-light p-2 rounded border">Respuesta (${s.resueltoPor}): ${s.obsResolucion}</div>` : ''}
         ${renderBloqueComprobanteHtml(s, true, false)}
       </div>`;
@@ -348,7 +436,6 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
     }
 
     const cont = document.getElementById('listaBandejaJefe');
-    // Conservar observaciones que el jefe esté escribiendo antes de redibujar
     const obsPrevias = {};
     cont.querySelectorAll('input[id^="obs_"]').forEach(inp => {
       if (inp.value) obsPrevias[inp.id] = inp.value;
@@ -453,6 +540,7 @@ function renderListaBandejaRRHH(lista) {
         </div>
         <div class="small">
           <strong>Permiso:</strong> ${s.tipoPermiso} | <strong>Fechas:</strong> ${s.fechaDesde} al ${s.fechaHasta} (${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''})<br>
+          ${s.motivo ? `<strong>Detalle:</strong> ${s.motivo}<br>` : ''}
           <strong>Estado gestión:</strong> ${s.resueltoPor} (${s.fechaResolucion})
         </div>
         ${renderBloqueComprobanteHtml(s, false, true)}
@@ -499,6 +587,7 @@ function renderHistorialSupervision(lista) {
     if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">Aprobado</span>';
     if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">Finalizado RRHH</span>';
     if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">Denegado</span>';
+    if (s.estado === 'Anulado') badge = '<span class="badge bg-secondary">🚫 Anulado</span>';
 
     html += `
       <div class="tramite-item">
@@ -509,6 +598,7 @@ function renderHistorialSupervision(lista) {
         <div class="small text-muted">
           <strong>${s.idTramite}</strong> | ${s.tipoPermiso} | Del <strong>${s.fechaDesde}</strong> al <strong>${s.fechaHasta}</strong> (${s.cantDias}d)
         </div>
+        ${s.motivo ? `<div class="small text-secondary mt-1">${s.motivo}</div>` : ''}
         ${renderBloqueComprobanteHtml(s, false, false)}
       </div>`;
   });
@@ -683,12 +773,14 @@ export function initPermisosEvents() {
     const tipoSel = document.getElementById('permisoTipo').value;
     const conf = state.configPermisosGlobal.find(p => p.nombre === tipoSel);
     const modalidad = obtenerTipoDiasEfectivo(conf);
+    const esCancel = esTipoCancelacion(conf);
 
     const payload = {
       action: 'crearPermiso',
       usuario: document.getElementById('firmaUsuario').value.trim(),
       clave: document.getElementById('firmaClave').value.trim(),
       tipoPermiso: tipoSel,
+      idTramiteCancelar: esCancel ? document.getElementById('permisoTramiteCancelar').value : '',
       tipoDiasAplicado: modalidad,
       esVacaciones: conf ? conf.esVacaciones : false,
       fechaDesde: document.getElementById('permisoDesde').value,
@@ -710,10 +802,14 @@ export function initPermisosEvents() {
         msgDiv.className = "alert alert-success mt-3";
         msgDiv.innerText = res.message;
         document.getElementById('formPermiso').reset();
+        document.getElementById('permisoDesde').readOnly = false;
+        document.getElementById('permisoHasta').readOnly = false;
         document.getElementById('panelSaldoVacaciones').classList.add('d-none');
+        document.getElementById('panelCancelacionPedido')?.classList.add('d-none');
         document.getElementById('desgloseCalculoDias').innerHTML = '';
         document.getElementById('infoReglaPermiso').innerText = '';
-        renderMisSolicitudes(res.misSolicitudes || []);
+        state.misSolicitudesGlobal = res.misSolicitudes || [];
+        renderMisSolicitudes(state.misSolicitudesGlobal);
       } else {
         msgDiv.className = "alert alert-danger mt-3";
         msgDiv.innerText = res ? res.message : "Error al enviar solicitud.";
@@ -761,7 +857,10 @@ export function initPermisosEvents() {
         if (res && res.success) {
           msgDiv.className = "alert alert-success mt-3";
           msgDiv.innerText = "✓ " + res.message;
-          if (res.misSolicitudes) renderMisSolicitudes(res.misSolicitudes);
+          if (res.misSolicitudes) {
+            state.misSolicitudesGlobal = res.misSolicitudes;
+            renderMisSolicitudes(state.misSolicitudesGlobal);
+          }
         } else {
           msgDiv.className = "alert alert-danger mt-3";
           msgDiv.innerText = res ? res.message : "Error al subir el comprobante.";
