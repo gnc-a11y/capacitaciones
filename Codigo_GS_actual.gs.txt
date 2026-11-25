@@ -1,0 +1,1679 @@
+// =========================================================================
+// PORTAL INTERNO CEEZ - CAPACITACIONES Y GESTIÓN DE LICENCIAS / PERMISOS
+// =========================================================================
+
+const SS_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+const CARPETA_COMPROBANTES_ID = "1sZ_gT4vU4vVCloI9x8JrvL6Y1xB6h15H";
+const CARPETA_NOTAS_PDF_ID = "1sZ_gT4vU4vVCloI9x8JrvL6Y1xB6h15H";
+const LINK_PORTAL_WEB = "https://capacitacionesceez.com.ar";
+
+// -------------------------------------------------------------------------
+// PUNTO DE ENTRADA ÚNICO (POST / GET / JSONP)
+// -------------------------------------------------------------------------
+function doPost(e) {
+  let p = {};
+  try {
+    if (e && e.postData && e.postData.contents) {
+      p = JSON.parse(e.postData.contents);
+    }
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "JSON inválido." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return ejecutarAccion(p, "");
+}
+
+function doGet(e) {
+  const p = (e && e.parameter) ? e.parameter : {};
+  const callback = p.callback || "";
+  return ejecutarAccion(p, callback);
+}
+
+function ejecutarAccion(p, callback) {
+  const action = String(p.action || "").trim();
+  const credencial = p.clave || p.token || p.sessionToken || "";
+  let result = { success: false, message: "Acción no reconocida: " + action };
+
+  try {
+    if (action === "login") {
+      result = procesarLogin(p.usuario, p.clave);
+    } else if (action === "sincronizarSesion") {
+      const empTok = p.usuario
+        ? autenticarUsuario(p.usuario, credencial)
+        : buscarEmpleadoPorToken(credencial);
+      result = empTok
+        ? procesarLogin(empTok.usuario, empTok.sessionToken)
+        : { success: false, message: "Sesión expirada o no válida." };
+    } else if (action === "cambiarClave") {
+      result = procesarCambioClave(p.usuario, p.claveActual, p.claveNueva);
+    } else if (action === "getCursos") {
+      result = obtenerCursosUsuario(p.usuario, credencial);
+    } else if (action === "generarExamen" || action === "getExamen") {
+      result = generarExamenCurso(p.titulo || p.cursoId);
+    } else if (action === "guardarResultado" || action === "guardarExamen") {
+      result = guardarResultadoEvaluacion(p);
+    } else if (action === "getPanelPermisos") {
+      result = obtenerPanelPermisos(p.usuario, credencial);
+    } else if (action === "crearPermiso") {
+      result = crearSolicitudPermiso(p);
+    } else if (action === "firmarCambioTurnoCompanero") {
+      result = firmarCambioTurnoCompanero(p);
+    } else if (action === "resolverPermiso") {
+      result = resolverSolicitudPermiso(p);
+    } else if (action === "actualizarSaldoVacaciones") {
+      result = actualizarSaldoVacacionesRRHH(p);
+    } else if (action === "agregarFeriado") {
+      result = agregarFeriadoRRHH(p);
+    } else if (action === "eliminarFeriado") {
+      result = eliminarFeriadoRRHH(p);
+    } else if (action === "toggleDelegacionRRHH") {
+      result = toggleDelegacionRRHH(p);
+    } else if (action === "toggleDelegacionJefe") {
+      result = toggleDelegacionJefe(p);
+    } else if (action === "subirComprobante") {
+      result = subirComprobantePermiso(p);
+    } else if (action === "logout") {
+      result = { success: true, message: "Sesión cerrada." };
+    }
+  } catch (err) {
+    result = { success: false, message: "Error interno del servidor: " + err.message };
+  }
+
+  const jsonOutput = JSON.stringify(result);
+  if (callback) {
+    return ContentService.createTextOutput(callback + "(" + jsonOutput + ")")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(jsonOutput)
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// -------------------------------------------------------------------------
+// HELPERS GENERALES Y LECTURA DE EMPLEADOS
+// -------------------------------------------------------------------------
+function normalizarTexto(txt) {
+  return String(txt || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function esTipoCancelacionNombre(nombre) {
+  return normalizarTexto(nombre).includes("cancelacion");
+}
+
+function esTipoCambioTurnoNombre(nombre) {
+  return normalizarTexto(nombre).includes("cambio de turno");
+}
+
+function obtenerDiasMaximosConfig(shConf, tipoPermiso, convenioEmpleado) {
+  if (!shConf || shConf.getLastRow() < 2) return 0;
+  const cData = shConf.getDataRange().getValues();
+  const hConf = cData[0].map(h => normalizarTexto(h));
+  const iConv = hConf.findIndex(h => h.includes("convenio") || h.includes("cct"));
+  const iNom = hConf.findIndex(h => h.includes("nombre") || h.includes("permiso") || h.includes("licencia") || h.includes("motivo"));
+  const iMax = hConf.findIndex(h => h.includes("max") || h.includes("maximo"));
+  const tipoNorm = normalizarTexto(tipoPermiso);
+
+  for (let i = 1; i < cData.length; i++) {
+    const r = cData[i];
+    const nomRow = iNom !== -1 ? String(r[iNom] || "").trim() : String(r[2] || "").trim();
+    const convRow = iConv !== -1 ? String(r[iConv] || "TODOS").trim() : String(r[1] || "TODOS").trim();
+    if (normalizarTexto(nomRow) === tipoNorm && convenioCoincide(convRow, convenioEmpleado)) {
+      const valMax = iMax !== -1 ? Number(r[iMax]) : Number(r[5]);
+      return !isNaN(valMax) && valMax > 0 ? valMax : 0;
+    }
+  }
+  return 0;
+}
+
+function generarCodigoSeguridad(usuario, claveGuardada, dni) {
+  const base = String(usuario || "").trim().toLowerCase() + "|" + String(claveGuardada || dni || "").trim();
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, base);
+  return digest.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').substring(0, 24);
+}
+
+function obtenerMapaEmpleados() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ss.getSheetByName("empleados");
+  if (!sh || sh.getLastRow() < 2) {
+    return { sh: sh, idx: {}, lista: [] };
+  }
+
+  const data = sh.getDataRange().getValues();
+  const headers = data[0].map(h => normalizarTexto(h));
+
+  const idx = {
+    nombre: headers.indexOf("nombre"),
+    dni: headers.indexOf("dni"),
+    legajo: headers.indexOf("legajo"),
+    correo: headers.findIndex(h => h.includes("correo") || h.includes("email")),
+    usuario: headers.indexOf("usuario"),
+    clave: headers.indexOf("clave"),
+    unidad: headers.indexOf("unidad"),
+    convenio: headers.indexOf("convenio"),
+    modalidad: headers.findIndex(h => h.includes("modalidad")),
+    vacaciones: headers.findIndex(h => h.includes("vacaciones")),
+    rol: headers.indexOf("rol"),
+    accesoRRHH: headers.findIndex(h => h.includes("acceso_rrhh")),
+    jefeUsuario: headers.findIndex(h => h.includes("jefe_usuario")),
+    delegadoJefe: headers.findIndex(h => h.includes("delegado_jefe"))
+  };
+
+  const lista = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const usr = idx.usuario !== -1 ? String(row[idx.usuario] || "").trim() : "";
+    if (!usr) continue;
+
+    const dniVal = idx.dni !== -1 ? String(row[idx.dni] || "").trim() : "";
+    const claveVal = idx.clave !== -1 ? String(row[idx.clave] || "").trim() : "";
+    const rolVal = idx.rol !== -1 ? String(row[idx.rol] || "empleado").trim() : "empleado";
+    const accRRHH = idx.accesoRRHH !== -1 ? normalizarTexto(row[idx.accesoRRHH]) === "si" : false;
+    const delJefe = idx.delegadoJefe !== -1 ? normalizarTexto(row[idx.delegadoJefe]) === "si" : false;
+    const modVal = idx.modalidad !== -1 && normalizarTexto(row[idx.modalidad]) === "corridos" ? "CORRIDOS" : "HABILES";
+
+    lista.push({
+      fila: i + 1,
+      nombre: idx.nombre !== -1 ? String(row[idx.nombre] || "").trim() : usr,
+      dni: dniVal,
+      legajo: idx.legajo !== -1 ? String(row[idx.legajo] || "").trim() : "",
+      correo: idx.correo !== -1 ? String(row[idx.correo] || "").trim() : "",
+      usuario: usr,
+      usuarioNorm: usr.toLowerCase(),
+      clave: claveVal,
+      usandoClaveDefecto: !claveVal || claveVal === dniVal,
+      unidad: idx.unidad !== -1 ? String(row[idx.unidad] || "").trim() : "",
+      unidadNorm: idx.unidad !== -1 ? normalizarTexto(row[idx.unidad]) : "",
+      convenio: idx.convenio !== -1 ? String(row[idx.convenio] || "").trim() : "",
+      modalidadDias: modVal,
+      diasVacaciones: idx.vacaciones !== -1 ? (Number(row[idx.vacaciones]) || 0) : 0,
+      rol: rolVal || "empleado",
+      rolNorm: (rolVal || "empleado").toLowerCase(),
+      accesoRRHH: accRRHH || (rolVal || "").toLowerCase() === "jefa_rrhh",
+      jefeUsuario: idx.jefeUsuario !== -1 ? String(row[idx.jefeUsuario] || "").trim().toLowerCase() : "",
+      esDelegadoJefe: delJefe
+    });
+  }
+  return { sh, idx, lista };
+}
+
+function buscarEmpleadoPorUsuario(usuario) {
+  const usrNorm = String(usuario || "").trim().toLowerCase();
+  if (!usrNorm) return null;
+  const { lista } = obtenerMapaEmpleados();
+  const emp = lista.find(e => e.usuarioNorm === usrNorm);
+  if (!emp) return null;
+  emp.sessionToken = "TOK_" + generarCodigoSeguridad(emp.usuarioNorm, emp.clave, emp.dni);
+  return emp;
+}
+
+function buscarEmpleadoPorToken(token) {
+  const tok = String(token || "").trim();
+  if (!tok) return null;
+  const { lista } = obtenerMapaEmpleados();
+  for (let i = 0; i < lista.length; i++) {
+    const emp = lista[i];
+    const t = "TOK_" + generarCodigoSeguridad(emp.usuarioNorm, emp.clave, emp.dni);
+    if (t === tok) {
+      emp.sessionToken = t;
+      return emp;
+    }
+  }
+  return null;
+}
+
+function autenticarUsuario(usuario, claveOToken) {
+  const emp = buscarEmpleadoPorUsuario(usuario);
+  if (!emp) return null;
+
+  const clv = String(claveOToken || "").trim();
+  if (!clv) return null;
+
+  const claveEsperada = emp.clave || emp.dni;
+  const tokenEsperado = emp.sessionToken;
+
+  if (clv !== claveEsperada && clv !== tokenEsperado) return null;
+  return emp;
+}
+
+// -------------------------------------------------------------------------
+// 1. LOGIN, SINCRONIZACIÓN DE SESIÓN Y CAMBIO DE CONTRASEÑA
+// -------------------------------------------------------------------------
+function construirCursosDeEmpleado(emp) {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shCursos = ss.getSheetByName("capacitaciones");
+  const shYt = ss.getSheetByName("youtube");
+  const shRes = ss.getSheetByName("evaluacionesresultados");
+
+  let videoIntroUrl = "";
+  if (shYt && shYt.getLastRow() >= 2) {
+    const ytData = shYt.getDataRange().getValues();
+    for (let i = 1; i < ytData.length; i++) {
+      const cell = ytData[i].find(v => String(v || "").includes("http"));
+      if (cell) {
+        videoIntroUrl = String(cell).trim();
+        break;
+      }
+    }
+  }
+
+  const hoyArg = Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  const hoyArgSinCero = Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "d/M/yyyy");
+  const resultadosMap = {};
+
+  if (shRes && shRes.getLastRow() >= 2) {
+    const resData = shRes.getDataRange().getValues();
+    for (let i = 1; i < resData.length; i++) {
+      const rFechaRaw = resData[i][0];
+      let rFechaStr = "";
+      if (rFechaRaw instanceof Date) {
+        rFechaStr = Utilities.formatDate(rFechaRaw, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+      } else {
+        rFechaStr = String(rFechaRaw || "").trim().split(" ")[0];
+      }
+
+      const rLeg = String(resData[i][1] || "").trim();
+      const rCurso = String(resData[i][3] || "").trim();
+      const rNota = Number(resData[i][4]) || 0;
+      const rEstado = String(resData[i][5] || "").trim();
+      const rCert = String(resData[i][8] || resData[i][6] || "").trim();
+
+      if (rLeg === emp.legajo && rCurso) {
+        if (!resultadosMap[rCurso]) {
+          resultadosMap[rCurso] = {
+            aprobado: false,
+            nota: 0,
+            intentosHoy: 0,
+            urlCertificado: ""
+          };
+        }
+        if (rFechaStr === hoyArg || rFechaStr === hoyArgSinCero) {
+          resultadosMap[rCurso].intentosHoy++;
+        }
+        if (normalizarTexto(rEstado) === "aprobado") {
+          resultadosMap[rCurso].aprobado = true;
+          if (rCert && rCert.startsWith("http")) {
+            resultadosMap[rCurso].urlCertificado = rCert;
+          }
+        }
+        if (rNota > resultadosMap[rCurso].nota) {
+          resultadosMap[rCurso].nota = rNota;
+        }
+      }
+    }
+  }
+
+  const cursos = [];
+  if (shCursos && shCursos.getLastRow() >= 2) {
+    const cData = shCursos.getDataRange().getValues();
+    const cHeaders = cData[0].map(h => normalizarTexto(h));
+
+    for (let i = 1; i < cData.length; i++) {
+      const row = cData[i];
+      if (!row.some(v => String(v || "").trim() !== "")) continue;
+
+      let titulo = "";
+      let linkDrive = "";
+      let descripcion = "";
+
+      const idxLink = row.findIndex(v => String(v || "").trim().startsWith("http"));
+      if (idxLink !== -1) {
+        linkDrive = String(row[idxLink]).trim();
+      }
+
+      const idxTitCol = cHeaders.findIndex(h => h.includes("titulo") || h.includes("capacitacion") || h.includes("nombre"));
+      if (idxTitCol !== -1 && idxTitCol !== idxLink) {
+        titulo = String(row[idxTitCol] || "").trim();
+      } else {
+        titulo = String(row[0] || "").trim();
+      }
+
+      const otrasCols = [];
+      for (let c = 0; c < row.length; c++) {
+        if (c === idxLink) continue;
+        const val = String(row[c] || "").trim();
+        if (!val || val === titulo) continue;
+        const h = cHeaders[c] || "";
+        if (h === "activo" || h === "estado") {
+          if (normalizarTexto(val) === "inactivo" || normalizarTexto(val) === "no") {
+            titulo = "";
+            break;
+          }
+          continue;
+        }
+        if (h.includes("duracion") || h.includes("tiempo") || /^\d+\s*min/i.test(val)) {
+          otrasCols.push("⏱️ Duración estimada: " + val);
+        } else {
+          otrasCols.push(val);
+        }
+      }
+
+      if (!titulo) continue;
+      descripcion = otrasCols.join(" • ") || "Material de capacitación obligatorio CEEZ";
+
+      let evalInfo = resultadosMap[titulo];
+      if (!evalInfo) {
+        const keyMatch = Object.keys(resultadosMap).find(k =>
+          normalizarTexto(k) === normalizarTexto(titulo) ||
+          normalizarTexto(titulo).includes(normalizarTexto(k)) ||
+          normalizarTexto(k).includes(normalizarTexto(titulo))
+        );
+        if (keyMatch) evalInfo = resultadosMap[keyMatch];
+      }
+      if (!evalInfo) {
+        evalInfo = { aprobado: false, nota: null, intentosHoy: 0, urlCertificado: "" };
+      }
+
+      const intentosHoy = evalInfo.intentosHoy || 0;
+      const aprobado = !!evalInfo.aprobado;
+
+      cursos.push({
+        id: titulo,
+        titulo: titulo,
+        descripcion: descripcion,
+        urlDrive: linkDrive,
+        linkDrive: linkDrive,
+        aprobado: aprobado,
+        nota: evalInfo.nota,
+        intentosHoy: intentosHoy,
+        bloqueado: !aprobado && intentosHoy >= 3,
+        urlCertificado: evalInfo.urlCertificado || ""
+      });
+    }
+  }
+
+  return { videoIntroUrl: videoIntroUrl, cursos: cursos };
+}
+
+function procesarLogin(usuario, clave) {
+  const emp = autenticarUsuario(usuario, clave);
+  if (!emp) {
+    return { success: false, message: "Usuario o contraseña incorrectos." };
+  }
+
+  const { videoIntroUrl, cursos } = construirCursosDeEmpleado(emp);
+  const panel = obtenerPanelPermisos(emp.usuario, emp.sessionToken) || {};
+
+  const datosUsuario = {
+    nombre: emp.nombre,
+    dni: emp.dni,
+    legajo: emp.legajo,
+    correo: emp.correo,
+    usuario: emp.usuario,
+    unidad: emp.unidad,
+    convenio: emp.convenio,
+    modalidadDias: emp.modalidadDias,
+    diasVacaciones: emp.diasVacaciones,
+    rol: emp.rol,
+    accesoRRHH: emp.accesoRRHH,
+    esDelegadoJefe: emp.esDelegadoJefe,
+    usandoClaveDefecto: emp.usandoClaveDefecto,
+    sessionToken: emp.sessionToken,
+    token: emp.sessionToken
+  };
+
+  return Object.assign({}, panel, {
+    success: true,
+    token: emp.sessionToken,
+    sessionToken: emp.sessionToken,
+    usuario: datosUsuario,
+    user: datosUsuario,
+    nombre: emp.nombre,
+    legajo: emp.legajo,
+    unidad: emp.unidad,
+    rol: emp.rol,
+    usandoClaveDefecto: emp.usandoClaveDefecto,
+    videoIntroUrl: videoIntroUrl,
+    cursos: cursos,
+    capacitaciones: cursos
+  });
+}
+
+function procesarCambioClave(usuario, claveActual, claveNueva) {
+  const emp = autenticarUsuario(usuario, claveActual);
+  if (!emp) {
+    return { success: false, message: "El usuario o la clave actual no son correctos." };
+  }
+  const nueva = String(claveNueva || "").trim();
+  if (nueva.length < 4) {
+    return { success: false, message: "La nueva contraseña debe tener al menos 4 caracteres." };
+  }
+
+  const { sh, idx } = obtenerMapaEmpleados();
+  if (idx.clave === -1) {
+    return { success: false, message: "No se encontró la columna 'clave' en la hoja empleados." };
+  }
+  sh.getRange(emp.fila, idx.clave + 1).setValue(nueva);
+  const nuevoTok = "TOK_" + generarCodigoSeguridad(emp.usuarioNorm, nueva, emp.dni);
+
+  return {
+    success: true,
+    message: "Contraseña actualizada correctamente.",
+    token: nuevoTok,
+    sessionToken: nuevoTok
+  };
+}
+
+// -------------------------------------------------------------------------
+// 2. CAPACITACIONES Y EVALUACIONES (banco_preguntas + evaluacionesresultados)
+// -------------------------------------------------------------------------
+function obtenerCursosUsuario(usuario, credencial) {
+  const emp = credencial ? autenticarUsuario(usuario, credencial) : buscarEmpleadoPorUsuario(usuario);
+  if (!emp) return { success: false, message: "Sesión no válida.", cursos: [], capacitaciones: [] };
+
+  const { videoIntroUrl, cursos } = construirCursosDeEmpleado(emp);
+  return { success: true, videoIntroUrl: videoIntroUrl, cursos: cursos, capacitaciones: cursos };
+}
+
+function generarExamenCurso(tituloBuscado) {
+  const ref = String(tituloBuscado || "").trim();
+  const refNorm = normalizarTexto(ref);
+  if (!ref) return { success: false, message: "No se indicó la capacitación." };
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shBanco = ss.getSheetByName("banco_preguntas");
+  if (!shBanco || shBanco.getLastRow() < 2) {
+    return { success: false, message: "No hay preguntas cargadas en banco_preguntas." };
+  }
+
+  const data = shBanco.getDataRange().getValues();
+  const headers = data[0].map(h => normalizarTexto(h));
+
+  const colCap = headers.indexOf("capacitacion") !== -1 ? headers.indexOf("capacitacion") : 1;
+  const colEnun = headers.indexOf("enunciado") !== -1 ? headers.indexOf("enunciado") : 3;
+  const colOpc = headers.findIndex(h => h.includes("opciones")) !== -1 ? headers.findIndex(h => h.includes("opciones")) : 5;
+  const colCorr = headers.findIndex(h => h.includes("correctas")) !== -1 ? headers.findIndex(h => h.includes("correctas")) : 6;
+
+  const grupos = {};
+  for (let i = 1; i < data.length; i++) {
+    const capNombre = String(data[i][colCap] || "").trim();
+    if (!capNombre) continue;
+    if (!grupos[capNombre]) grupos[capNombre] = [];
+    grupos[capNombre].push(data[i]);
+  }
+
+  let nombreMatch = Object.keys(grupos).find(k => normalizarTexto(k) === refNorm);
+
+  if (!nombreMatch) {
+    const palabrasRef = refNorm.split(/[^a-z0-9]+/).filter(w => w.length >= 5);
+    let mejorScore = 0;
+    Object.keys(grupos).forEach(k => {
+      const kNorm = normalizarTexto(k);
+      if (refNorm.includes(kNorm) || kNorm.includes(refNorm)) {
+        nombreMatch = k;
+        mejorScore = 999;
+        return;
+      }
+      const palabrasK = kNorm.split(/[^a-z0-9]+/).filter(w => w.length >= 5);
+      let score = 0;
+      palabrasK.forEach(pk => {
+        const raiz = pk.substring(0, 6);
+        if (palabrasRef.some(pr => pr.startsWith(raiz))) score++;
+      });
+      if (score > mejorScore) {
+        mejorScore = score;
+        nombreMatch = k;
+      }
+    });
+  }
+
+  if (!nombreMatch || !grupos[nombreMatch]) {
+    return {
+      success: false,
+      message: `No se encontraron preguntas para "${ref}". Verificá que la columna Capacitacion en banco_preguntas coincida con el título.`
+    };
+  }
+
+  const filasPreguntas = grupos[nombreMatch];
+  const todasPreguntas = [];
+
+  filasPreguntas.forEach(row => {
+    const enunciado = String(row[colEnun] || "").trim();
+    const opcRaw = String(row[colOpc] || "").trim();
+    const corrRaw = String(row[colCorr] || "").trim();
+    if (!enunciado || !opcRaw) return;
+
+    let opciones = {};
+    let correctas = [];
+    try {
+      opciones = JSON.parse(opcRaw);
+    } catch (e) {
+      return;
+    }
+    try {
+      const parsedCorr = JSON.parse(corrRaw);
+      correctas = Array.isArray(parsedCorr) ? parsedCorr.map(x => String(x).trim().toUpperCase()) : [String(parsedCorr).trim().toUpperCase()];
+    } catch (e) {
+      correctas = corrRaw.replace(/[\[\]"]/g, "").split(",").map(x => String(x).trim().toUpperCase()).filter(Boolean);
+    }
+
+    if (correctas.length === 0) correctas = ["A"];
+
+    todasPreguntas.push({
+      enunciado: enunciado,
+      opciones: opciones,
+      correctas: correctas
+    });
+  });
+
+  if (todasPreguntas.length === 0) {
+    return { success: false, message: "No se pudieron procesar las preguntas de esta capacitación." };
+  }
+
+  for (let i = todasPreguntas.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = todasPreguntas[i];
+    todasPreguntas[i] = todasPreguntas[j];
+    todasPreguntas[j] = tmp;
+  }
+
+  return {
+    success: true,
+    preguntas: todasPreguntas.slice(0, 10)
+  };
+}
+
+function guardarResultadoEvaluacion(p) {
+  const legajo = String(p.legajo || "").trim();
+  const nombre = String(p.nombre || "").trim();
+  const capacitacion = String(p.capacitacion || "").trim();
+  const nota = Number(p.nota) || 0;
+
+  if (!legajo || !capacitacion) {
+    return { success: false, message: "Faltan datos del empleado o de la capacitación." };
+  }
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shRes = ss.getSheetByName("evaluacionesresultados");
+  const aprobado = nota >= 60;
+  const estadoTxt = aprobado ? "Aprobado" : "Desaprobado";
+  const ahora = new Date();
+  const fechaStr = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm:ss");
+  const hoyArg = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  const hoyArgSinCero = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "d/M/yyyy");
+
+  let intentosDia = 1;
+  let intentosTotales = 1;
+  if (shRes && shRes.getLastRow() >= 2) {
+    const resData = shRes.getDataRange().getValues();
+    for (let i = 1; i < resData.length; i++) {
+      const rLeg = String(resData[i][1] || "").trim();
+      const rCurso = String(resData[i][3] || "").trim();
+      if (rLeg === legajo && normalizarTexto(rCurso) === normalizarTexto(capacitacion)) {
+        intentosTotales++;
+        const rFechaRaw = resData[i][0];
+        const rFechaStr = rFechaRaw instanceof Date
+          ? Utilities.formatDate(rFechaRaw, "America/Argentina/Buenos_Aires", "dd/MM/yyyy")
+          : String(rFechaRaw || "").trim().split(" ")[0];
+        if (rFechaStr === hoyArg || rFechaStr === hoyArgSinCero) {
+          intentosDia++;
+        }
+      }
+    }
+  }
+
+  let urlCertificado = "";
+  if (aprobado) {
+    urlCertificado = generarCertificadoCapacitacionPDF(nombre, legajo, capacitacion, nota, fechaStr);
+  }
+
+  shRes.appendRow([
+    fechaStr,
+    legajo,
+    nombre,
+    capacitacion,
+    nota,
+    estadoTxt,
+    intentosDia,
+    intentosTotales,
+    urlCertificado
+  ]);
+
+  return {
+    success: true,
+    estado: estadoTxt,
+    aprobado: aprobado,
+    nota: nota,
+    urlCertificado: urlCertificado
+  };
+}
+
+function generarCertificadoCapacitacionPDF(nombre, legajo, capacitacion, nota, fechaStr) {
+  try {
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; color: #1e293b; padding: 48px; text-align: center; border: 8px solid #0d6efd; margin: 20px; }
+        .org { font-size: 20px; font-weight: bold; color: #0d6efd; letter-spacing: 1px; margin-bottom: 6px; }
+        .sub { font-size: 13px; color: #64748b; margin-bottom: 36px; }
+        .titulo { font-size: 28px; font-weight: bold; color: #0f172a; margin-bottom: 24px; }
+        .texto { font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
+        .empleado { font-size: 24px; font-weight: bold; color: #0d6efd; margin: 14px 0; }
+        .curso { font-size: 19px; font-weight: bold; color: #1e3a8a; margin: 16px 0 28px 0; }
+        .pie { margin-top: 50px; font-size: 12px; color: #475569; }
+      </style>
+    </head>
+    <body>
+      <div class="org">COOPERATIVA DE ENERGÍA ELÉCTRICA DE ZAPALA</div>
+      <div class="sub">Programa Interno de Capacitación y Seguridad Laboral</div>
+      <div class="titulo">CERTIFICADO DE APROBACIÓN</div>
+      <div class="texto">Se certifica que</div>
+      <div class="empleado">${nombre} (Legajo N° ${legajo})</div>
+      <div class="texto">ha completado y aprobado satisfactoriamente la evaluación correspondiente a la capacitación:</div>
+      <div class="curso">"${capacitacion}"</div>
+      <div class="texto">Calificación obtenida: <strong>${nota}%</strong> — Fecha de emisión: <strong>${fechaStr}</strong></div>
+      <div class="pie">Documento generado automáticamente por el Portal Interno CEEZ</div>
+    </body>
+    </html>`;
+
+    const blob = Utilities.newBlob(html, "text/html", `Certificado_${legajo}.html`);
+    const pdfBlob = blob.getAs("application/pdf").setName(`Certificado_${legajo}_${capacitacion.replace(/\s+/g, "_")}.pdf`);
+    const folder = DriveApp.getFolderById(CARPETA_NOTAS_PDF_ID);
+    const file = folder.createFile(pdfBlob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return file.getUrl();
+  } catch (err) {
+    return "";
+  }
+}
+
+// -------------------------------------------------------------------------
+// 3. MÓDULO DE PERMISOS, VACACIONES Y CAMBIO DE TURNO
+// -------------------------------------------------------------------------
+function formatearFechaISO(valor) {
+  if (!valor) return "";
+  if (valor instanceof Date) {
+    return Utilities.formatDate(valor, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+  }
+  const s = String(valor).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+    const parts = s.substring(0, 10).split("/");
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return s;
+}
+
+function isoAFechaArg(iso) {
+  if (!iso || iso.length < 10) return iso;
+  const p = iso.substring(0, 10).split("-");
+  return `${p[2]}/${p[1]}/${p[0]}`;
+}
+
+function parsearMetadatosCambioTurno(motivoRaw) {
+  const txt = String(motivoRaw || "");
+  const m = txt.match(/^\[CT\|USR:([^|]+)\|LEG:([^|]+)\|NOM:([^|]+)\|HOR:([^\]]+)\]\s*(.*)$/);
+  if (!m) return null;
+  return {
+    reempUsuario: m[1].trim(),
+    reempLegajo: m[2].trim(),
+    reempNombre: m[3].trim(),
+    horario: m[4].trim(),
+    detalleLimpio: m[5].trim()
+  };
+}
+
+function convenioCoincide(convRegla, convEmpleado) {
+  const r = normalizarTexto(convRegla);
+  const e = normalizarTexto(convEmpleado);
+  if (!r || r === "todos" || r === "all" || r === "general") return true;
+  if (!e) return false;
+  if (r === e || e.includes(r) || r.includes(e)) return true;
+
+  const numsR = r.match(/\d+\/\d+/g) || [];
+  const numsE = e.match(/\d+\/\d+/g) || [];
+  return numsR.some(n => numsE.includes(n));
+}
+
+function obtenerFeriadosLista() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ss.getSheetByName("feriados");
+  if (!sh || sh.getLastRow() < 2) return [];
+  const data = sh.getDataRange().getValues();
+  const res = [];
+  for (let i = 1; i < data.length; i++) {
+    const fIso = formatearFechaISO(data[i][0]);
+    if (fIso) {
+      res.push({
+        fecha: fIso,
+        fechaArg: isoAFechaArg(fIso),
+        desc: String(data[i][1] || "Feriado").trim()
+      });
+    }
+  }
+  return res.sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+function obtenerTodasLasSolicitudes() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ss.getSheetByName("permisos_solicitudes");
+  if (!sh || sh.getLastRow() < 2) return [];
+  const data = sh.getDataRange().getValues();
+  const lista = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    const idTramite = String(r[0] || "").trim();
+    if (!idTramite) continue;
+
+    const fDesdeISO = formatearFechaISO(r[8]);
+    const fHastaISO = formatearFechaISO(r[9]);
+    const motivoRaw = String(r[11] || "").trim();
+    const ctInfo = parsearMetadatosCambioTurno(motivoRaw);
+
+    lista.push({
+      fila: i + 1,
+      idTramite: idTramite,
+      fechaSolicitud: r[1] instanceof Date
+        ? Utilities.formatDate(r[1], "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm")
+        : String(r[1] || "").trim(),
+      legajo: String(r[2] || "").trim(),
+      nombre: String(r[3] || "").trim(),
+      unidad: String(r[4] || "").trim(),
+      unidadNorm: normalizarTexto(r[4]),
+      tipoPermiso: String(r[5] || "").trim(),
+      tipoDiasAplicado: String(r[6] || "").trim(),
+      esVacaciones: normalizarTexto(r[7]) === "si",
+      fechaDesdeISO: fDesdeISO,
+      fechaHastaISO: fHastaISO,
+      fechaDesde: isoAFechaArg(fDesdeISO),
+      fechaHasta: isoAFechaArg(fHastaISO),
+      cantDias: Number(r[10]) || 0,
+      motivoRaw: motivoRaw,
+      motivo: ctInfo
+        ? `Reemplazante: ${ctInfo.reempNombre} (Leg. ${ctInfo.reempLegajo}) | Turno/Franco: ${ctInfo.horario}${ctInfo.detalleLimpio ? ' | ' + ctInfo.detalleLimpio : ''}`
+        : motivoRaw,
+      esCambioTurno: !!ctInfo,
+      cambioTurnoInfo: ctInfo,
+      aprobadorUsuario: String(r[12] || "").trim().toLowerCase(),
+      estado: String(r[13] || "").trim(),
+      resueltoPor: r[15] instanceof Date
+        ? Utilities.formatDate(r[15], "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm")
+        : String(r[15] || r[14] || "").trim(),
+      fechaResolucion: r[14] instanceof Date
+        ? Utilities.formatDate(r[14], "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm")
+        : String(r[14] || r[15] || "").trim(),
+      obsResolucion: String(r[16] || "").trim(),
+      requiereComprobante: normalizarTexto(r[17]) === "si",
+      urlComprobante: String(r[18] || "").trim(),
+      urlNotaPDF: String(r[19] || "").trim()
+    });
+  }
+  return lista.reverse();
+}
+
+function obtenerPanelPermisos(usuario, credencial) {
+  const emp = credencial ? autenticarUsuario(usuario, credencial) : buscarEmpleadoPorUsuario(usuario);
+  if (!emp) return { success: false, message: "Empleado no encontrado: " + usuario };
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shConf = ss.getSheetByName("config_permisos");
+  const permisosConfig = [];
+
+  if (shConf && shConf.getLastRow() >= 2) {
+    const cData = shConf.getDataRange().getValues();
+    const hConf = cData[0].map(h => normalizarTexto(h));
+
+    const iId = hConf.findIndex(h => h === "id" || h.includes("codigo"));
+    const iConv = hConf.findIndex(h => h.includes("convenio") || h.includes("cct"));
+    const iNom = hConf.findIndex(h => h.includes("nombre") || h.includes("permiso") || h.includes("licencia") || h.includes("motivo"));
+    const iVac = hConf.findIndex(h => h.includes("vacacion"));
+    const iTipo = hConf.findIndex(h => h.includes("tipo_dias") || h.includes("computo") || h.includes("modalidad"));
+    const iMax = hConf.findIndex(h => h.includes("max") || h.includes("maximo"));
+    const iComp = hConf.findIndex(h => h.includes("comprobante") || h.includes("certificado"));
+    const iAct = hConf.findIndex(h => h.includes("activo") || h.includes("estado"));
+
+    for (let i = 1; i < cData.length; i++) {
+      const r = cData[i];
+      if (!r.some(v => String(v || "").trim() !== "")) continue;
+
+      if (iAct !== -1) {
+        const actVal = normalizarTexto(r[iAct]);
+        if (actVal === "no" || actVal === "inactivo" || actVal === "false") continue;
+      }
+
+      const conv = iConv !== -1 ? String(r[iConv] || "TODOS").trim() : "TODOS";
+      const nombrePerm = iNom !== -1 ? String(r[iNom] || "").trim() : String(r[2] || r[1] || "").trim();
+      if (!nombrePerm) continue;
+
+      if (convenioCoincide(conv, emp.convenio)) {
+        const diasMaxLeido = iMax !== -1 ? Number(r[iMax]) : Number(r[5]);
+        permisosConfig.push({
+          id: iId !== -1 ? String(r[iId] || i).trim() : String(i),
+          convenio: conv,
+          nombre: nombrePerm,
+          esVacaciones: iVac !== -1 ? normalizarTexto(r[iVac]) === "si" : normalizarTexto(nombrePerm).includes("vacacion"),
+          tipoDias: iTipo !== -1 ? String(r[iTipo] || "SEGUN_CONVENIO").trim().toUpperCase() : "SEGUN_CONVENIO",
+          diasMax: !isNaN(diasMaxLeido) && diasMaxLeido > 0 ? diasMaxLeido : 0,
+          requiereComprobante: iComp !== -1 ? String(r[iComp] || "NO").trim() : "NO"
+        });
+      }
+    }
+  }
+
+  const { lista: todosEmpleados } = obtenerMapaEmpleados();
+  const todasSolicitudes = obtenerTodasLasSolicitudes();
+
+  const companerosSector = todosEmpleados
+    .filter(e => e.unidadNorm === emp.unidadNorm && e.usuarioNorm !== emp.usuarioNorm)
+    .map(e => ({
+      usuario: e.usuario,
+      legajo: e.legajo,
+      nombre: e.nombre
+    }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const misSolicitudes = todasSolicitudes.filter(s =>
+    s.legajo === emp.legajo ||
+    (s.cambioTurnoInfo && s.cambioTurnoInfo.reempUsuario.toLowerCase() === emp.usuarioNorm)
+  );
+
+  // Paso previo del Operario 2 antes de pasar a Jefatura
+  const pendientesCompanero = todasSolicitudes
+    .filter(s =>
+      s.estado === "Pendiente_Companero" &&
+      s.cambioTurnoInfo &&
+      s.cambioTurnoInfo.reempUsuario.toLowerCase() === emp.usuarioNorm
+    )
+    .map(s => Object.assign({}, s, {
+      esConfirmacionOperario2: true,
+      conflictos: []
+    }));
+
+  // Bandeja de Jefatura / Gerencia (solo trámites en Pendiente_Jefe)
+  let bandejaJefe = [];
+  if (emp.rolNorm === "jefe" || emp.esDelegadoJefe || emp.rolNorm === "jefa_rrhh" || emp.rolNorm === "gerente") {
+    const pendientes = todasSolicitudes.filter(s => s.estado === "Pendiente_Jefe");
+    bandejaJefe = pendientes.filter(s => {
+      if (s.legajo === emp.legajo) return false;
+      if (emp.rolNorm === "gerente") {
+        return s.aprobadorUsuario === emp.usuarioNorm || s.aprobadorUsuario === "gerente";
+      }
+      return s.aprobadorUsuario === emp.usuarioNorm || (emp.esDelegadoJefe && s.unidadNorm === emp.unidadNorm);
+    }).map(s => {
+      const conflictos = todasSolicitudes.filter(otro =>
+        otro.idTramite !== s.idTramite &&
+        otro.unidadNorm === s.unidadNorm &&
+        (otro.estado === "Aprobado_RRHH" || otro.estado === "Finalizado_RRHH" || otro.estado === "Pendiente_Jefe") &&
+        otro.fechaDesdeISO <= s.fechaHastaISO &&
+        otro.fechaHastaISO >= s.fechaDesdeISO
+      ).map(c => ({
+        nombre: c.nombre,
+        tipoPermiso: c.tipoPermiso,
+        fechaDesde: c.fechaDesde,
+        fechaHasta: c.fechaHasta,
+        estado: c.estado
+      }));
+      return Object.assign({}, s, {
+        esConfirmacionOperario2: false,
+        conflictos: conflictos
+      });
+    });
+  }
+
+  const bandejaAprobacion = pendientesCompanero.concat(bandejaJefe);
+
+  let bandejaRRHH = [];
+  let empleadosRRHHAdmin = [];
+  let operariosDelegacion = [];
+
+  if (emp.accesoRRHH) {
+    bandejaRRHH = todasSolicitudes.filter(s =>
+      s.estado === "Aprobado_RRHH" || s.estado === "Finalizado_RRHH" || s.estado === "Anulado"
+    );
+    empleadosRRHHAdmin = todosEmpleados.map(e => ({
+      usuario: e.usuario,
+      legajo: e.legajo,
+      nombre: e.nombre,
+      unidad: e.unidad,
+      diasVacaciones: e.diasVacaciones
+    })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    if (emp.rolNorm === "jefa_rrhh") {
+      operariosDelegacion = todosEmpleados
+        .filter(e => e.unidadNorm === "rrhh" && e.rolNorm !== "jefa_rrhh")
+        .map(e => ({
+          usuario: e.usuario,
+          legajo: e.legajo,
+          nombre: e.nombre,
+          accesoRRHH: e.accesoRRHH
+        }));
+    }
+  }
+
+  let historialSupervision = [];
+  if (emp.rolNorm === "gerente" || emp.accesoRRHH) {
+    historialSupervision = todasSolicitudes;
+  } else if (emp.rolNorm === "jefe" || emp.esDelegadoJefe) {
+    historialSupervision = todasSolicitudes.filter(s => s.unidadNorm === emp.unidadNorm);
+  }
+
+  let empleadosSectorJefe = [];
+  if (emp.rolNorm === "jefe") {
+    empleadosSectorJefe = todosEmpleados
+      .filter(e => e.unidadNorm === emp.unidadNorm && e.usuarioNorm !== emp.usuarioNorm)
+      .map(e => ({
+        usuario: e.usuario,
+        legajo: e.legajo,
+        nombre: e.nombre,
+        delegadoActivo: e.esDelegadoJefe
+      }));
+  }
+
+  return {
+    success: true,
+    convenio: emp.convenio || "Sin Convenio",
+    modalidadDias: emp.modalidadDias,
+    diasVacaciones: emp.diasVacaciones,
+    rol: emp.rol,
+    accesoRRHH: emp.accesoRRHH,
+    esDelegadoJefe: emp.esDelegadoJefe,
+    permisosConfig: permisosConfig,
+    feriados: obtenerFeriadosLista(),
+    companerosSector: companerosSector,
+    misSolicitudes: misSolicitudes,
+    bandejaAprobacion: bandejaAprobacion,
+    bandejaRRHH: bandejaRRHH,
+    empleadosRRHHAdmin: empleadosRRHHAdmin,
+    operariosDelegacion: operariosDelegacion,
+    historialSupervision: historialSupervision,
+    empleadosSectorJefe: empleadosSectorJefe
+  };
+}
+
+// -------------------------------------------------------------------------
+// 4. CREACIÓN DE SOLICITUD (INCLUYE ANULACIÓN Y CAMBIO DE TURNO)
+// -------------------------------------------------------------------------
+function crearSolicitudPermiso(p) {
+  const emp = autenticarUsuario(p.usuario, p.clave);
+  if (!emp) {
+    return { success: false, message: "Firma electrónica inválida: usuario o clave incorrectos." };
+  }
+
+  const tipoPermiso = String(p.tipoPermiso || "").trim();
+  const fDesde = String(p.fechaDesde || "").trim();
+  const fHasta = String(p.fechaHasta || "").trim();
+  const cantDias = Number(p.cantDias) || 0;
+  const motivo = String(p.motivo || "").trim();
+  const tipoDiasAplicado = String(p.tipoDiasAplicado || emp.modalidadDias).trim();
+  const esVac = String(p.esVacaciones) === "true" || p.esVacaciones === true;
+  const esCancel = esTipoCancelacionNombre(tipoPermiso);
+  const esCambioTurno = esTipoCambioTurnoNombre(tipoPermiso);
+
+  if (!tipoPermiso || !fDesde || !fHasta || cantDias <= 0) {
+    return { success: false, message: "Completá todos los campos obligatorios y verificá el rango de fechas." };
+  }
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shConf = ss.getSheetByName("config_permisos");
+  let reqComp = "NO";
+  if (shConf && shConf.getLastRow() >= 2) {
+    const cData = shConf.getDataRange().getValues();
+    const hConf = cData[0].map(h => normalizarTexto(h));
+    const iNom = hConf.findIndex(h => h.includes("nombre") || h.includes("permiso") || h.includes("licencia") || h.includes("motivo"));
+    const iComp = hConf.findIndex(h => h.includes("comprobante") || h.includes("certificado"));
+    for (let i = 1; i < cData.length; i++) {
+      const nomRow = iNom !== -1 ? String(cData[i][iNom] || "").trim() : String(cData[i][2] || "").trim();
+      if (normalizarTexto(nomRow) === normalizarTexto(tipoPermiso)) {
+        reqComp = (iComp !== -1 ? String(cData[i][iComp] || "NO") : String(cData[i][6] || "NO")).trim().toUpperCase();
+        break;
+      }
+    }
+  }
+
+  let motivoFinal = motivo;
+  let esVacFinal = esVac;
+  let cantDiasFinal = cantDias;
+  let fDesdeFinal = fDesde;
+  let fHastaFinal = fHasta;
+  let estadoInicial = "Pendiente_Jefe";
+  let companeroObj = null;
+  let horLimpio = "";
+
+  if (esCancel) {
+    const idTarget = String(p.idTramiteCancelar || "").trim();
+    if (!idTarget) {
+      return { success: false, message: "Seleccioná el trámite aprobado que deseás cancelar." };
+    }
+    const todas = obtenerTodasLasSolicitudes();
+    const orig = todas.find(s => s.idTramite === idTarget && s.legajo === emp.legajo);
+    if (!orig) {
+      return { success: false, message: "No se encontró el trámite seleccionado." };
+    }
+    if (orig.estado !== "Aprobado_RRHH" && orig.estado !== "Finalizado_RRHH") {
+      return { success: false, message: "Solo podés solicitar anulación de trámites ya aprobados." };
+    }
+    fDesdeFinal = orig.fechaDesdeISO;
+    fHastaFinal = orig.fechaHastaISO;
+    cantDiasFinal = orig.cantDias;
+    esVacFinal = orig.esVacaciones;
+    motivoFinal = `[ANULA TRÁMITE ${orig.idTramite}] ${motivo.replace(/[\r\n]+/g, " ").trim()}`.trim();
+  }
+
+  if (esCambioTurno) {
+    const usrComp = String(p.companeroUsuario || "").trim().toLowerCase();
+    const horarioTurno = String(p.horarioCambioTurno || "").trim();
+    if (!usrComp || !horarioTurno) {
+      return { success: false, message: "Seleccioná el compañero/a del mismo sector e indicá el turno o franco a intercambiar." };
+    }
+    const { lista: todosEmp } = obtenerMapaEmpleados();
+    companeroObj = todosEmp.find(e => e.usuarioNorm === usrComp && e.unidadNorm === emp.unidadNorm);
+    if (!companeroObj || companeroObj.usuarioNorm === emp.usuarioNorm) {
+      return { success: false, message: "El compañero seleccionado no es válido para tu sector/unidad." };
+    }
+
+    const diasMaxConfig = obtenerDiasMaximosConfig(shConf, tipoPermiso, emp.convenio);
+    if (diasMaxConfig > 0 && cantDiasFinal > diasMaxConfig) {
+      return {
+        success: false,
+        message: `El cambio de turno permite hasta ${diasMaxConfig} día(s) según la configuración en la hoja.`
+      };
+    }
+
+    horLimpio = horarioTurno.replace(/[\r\n\]]+/g, " ").trim();
+    const motLimpio = motivo.replace(/[\r\n]+/g, " ").trim();
+
+    esVacFinal = false;
+    estadoInicial = "Pendiente_Companero";
+    motivoFinal = `[CT|USR:${companeroObj.usuario}|LEG:${companeroObj.legajo}|NOM:${companeroObj.nombre}|HOR:${horLimpio}] ${motLimpio}`.trim();
+  }
+
+  if (!esCancel && !esCambioTurno && esVacFinal && cantDiasFinal > emp.diasVacaciones) {
+    return { success: false, message: "Saldo de vacaciones insuficiente." };
+  }
+
+  const aprobador = emp.jefeUsuario || "gerente";
+  const idTramite = "PRM-" + Math.floor(100000 + Math.random() * 900000);
+  const ahoraStr = Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm");
+
+  const shSol = ss.getSheetByName("permisos_solicitudes");
+  shSol.appendRow([
+    idTramite,
+    ahoraStr,
+    emp.legajo,
+    emp.nombre,
+    emp.unidad,
+    tipoPermiso,
+    tipoDiasAplicado,
+    esVacFinal ? "SI" : "NO",
+    fDesdeFinal,
+    fHastaFinal,
+    cantDiasFinal,
+    motivoFinal,
+    aprobador,
+    estadoInicial,
+    "",
+    "",
+    "",
+    reqComp,
+    "",
+    ""
+  ]);
+
+  const { lista: todosEmpleados } = obtenerMapaEmpleados();
+  if (esCambioTurno && companeroObj && companeroObj.correo) {
+    enviarCorreoSilencioso(
+      companeroObj.correo,
+      `[CEEZ] Solicitud de Cambio de Turno pendiente de tu firma (${idTramite})`,
+      `Hola ${companeroObj.nombre},\n\n${emp.nombre} (Leg. ${emp.legajo} - ${emp.unidad}) solicitó un Cambio de Turno con vos del ${isoAFechaArg(fDesdeFinal)} al ${isoAFechaArg(fHastaFinal)} (${cantDiasFinal} día/s).\nTurno/Franco: ${horLimpio}\n\nIngresá al portal (${LINK_PORTAL_WEB}) -> Permisos y Vacaciones para revisar y firmar electrónicamente tu conformidad antes de pasar a Jefatura.`
+    );
+  } else {
+    const jefeObj = todosEmpleados.find(e => e.usuarioNorm === aprobador.toLowerCase());
+    if (jefeObj && jefeObj.correo) {
+      enviarCorreoSilencioso(
+        jefeObj.correo,
+        `[CEEZ] Nueva Solicitud de Permiso (${idTramite}) - ${emp.nombre}`,
+        `Hola ${jefeObj.nombre},\n\n${emp.nombre} (${emp.unidad}) envió una solicitud de "${tipoPermiso}" del ${isoAFechaArg(fDesdeFinal)} al ${isoAFechaArg(fHastaFinal)} (${cantDiasFinal} día/s).\n\nIngresá a ${LINK_PORTAL_WEB} para revisarla.`
+      );
+    }
+  }
+
+  const panelActualizado = obtenerPanelPermisos(p.usuario, emp.sessionToken);
+  return {
+    success: true,
+    message: esCambioTurno
+      ? `Solicitud ${idTramite} creada (${cantDiasFinal} día/s). Queda pendiente la aceptación de ${companeroObj.nombre} antes de pasar a Jefatura.`
+      : `Solicitud ${idTramite} firmada y enviada correctamente a tu superior.`,
+    misSolicitudes: panelActualizado.misSolicitudes
+  };
+}
+
+// -------------------------------------------------------------------------
+// 4B. FIRMA ELECTRÓNICA DEL COMPAÑERO EN CAMBIO DE TURNO
+// -------------------------------------------------------------------------
+function firmarCambioTurnoCompanero(p) {
+  const cred = p.clave || p.token || p.sessionToken;
+  const emp = cred
+    ? (p.usuario ? autenticarUsuario(p.usuario, cred) : buscarEmpleadoPorToken(cred))
+    : buscarEmpleadoPorUsuario(p.usuario);
+  if (!emp) {
+    return { success: false, message: "Sesión o firma electrónica inválida." };
+  }
+
+  const idTramite = String(p.idTramite || "").trim();
+  const decision = String(p.decision || "").trim().toUpperCase();
+  const observacion = String(p.observacion || "").trim().replace(/[\r\n]+/g, " ");
+  const todas = obtenerTodasLasSolicitudes();
+  const item = todas.find(s => s.idTramite === idTramite);
+
+  if (!item || !item.cambioTurnoInfo) {
+    return { success: false, message: "No se encontró el trámite de Cambio de Turno." };
+  }
+  if (item.estado !== "Pendiente_Companero") {
+    return { success: false, message: "Este trámite ya fue gestionado." };
+  }
+  if (item.cambioTurnoInfo.reempUsuario.toLowerCase() !== emp.usuarioNorm) {
+    return { success: false, message: "No estás designado como compañero/a en este trámite." };
+  }
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shSol = ss.getSheetByName("permisos_solicitudes");
+  const ahoraStr = Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm");
+
+  if (decision === "RECHAZAR") {
+    shSol.getRange(item.fila, 14).setValue("Rechazado");
+    shSol.getRange(item.fila, 15).setValue(ahoraStr);
+    shSol.getRange(item.fila, 16).setValue(`${emp.nombre} (Compañero/a de Turno)`);
+    shSol.getRange(item.fila, 17).setValue(observacion || "Cambio de turno rechazado por el compañero/a propuesto.");
+
+    const panel = obtenerPanelPermisos(emp.usuario, emp.sessionToken);
+    return {
+      success: true,
+      message: `Rechazaste el Cambio de Turno ${idTramite}. El trámite quedó cerrado y no pasará a Jefatura.`,
+      misSolicitudes: panel.misSolicitudes,
+      bandejaAprobacion: panel.bandejaAprobacion,
+      historialSupervision: panel.historialSupervision
+    };
+  }
+
+  // Al aceptar el Operario 2, pasa a Pendiente_Jefe para que Jefatura lo autorice
+  shSol.getRange(item.fila, 14).setValue("Pendiente_Jefe");
+  shSol.getRange(item.fila, 15).setValue(ahoraStr);
+  shSol.getRange(item.fila, 16).setValue(`${emp.nombre} (Compañero/a de Turno)`);
+  shSol.getRange(item.fila, 17).setValue(observacion || `Conformidad firmada por ${emp.nombre} el ${ahoraStr}`);
+
+  const { lista: todosEmpleados } = obtenerMapaEmpleados();
+  const jefeObj = todosEmpleados.find(e => e.usuarioNorm === item.aprobadorUsuario);
+  if (jefeObj && jefeObj.correo) {
+    enviarCorreoSilencioso(
+      jefeObj.correo,
+      `[CEEZ] Cambio de Turno aceptado por compañero listo para Jefatura (${idTramite})`,
+      `Hola ${jefeObj.nombre},\n\nEl Cambio de Turno ${idTramite} entre ${item.nombre} y ${emp.nombre} del ${item.fechaDesde} al ${item.fechaHasta} (${item.cambioTurnoInfo.horario}) ya fue aceptado por ${emp.nombre} y ahora está pendiente de tu autorización en Jefatura.\n\nIngresá a ${LINK_PORTAL_WEB} para revisarlo.`
+    );
+  }
+
+  const panel = obtenerPanelPermisos(emp.usuario, emp.sessionToken);
+  return {
+    success: true,
+    message: `✓ Conformidad registrada. El Cambio de Turno ${idTramite} pasó a Jefatura para su autorización.`,
+    misSolicitudes: panel.misSolicitudes,
+    bandejaAprobacion: panel.bandejaAprobacion,
+    historialSupervision: panel.historialSupervision
+  };
+}
+
+// -------------------------------------------------------------------------
+// 5. RESOLUCIÓN POR JEFATURA / GERENCIA Y FINALIZACIÓN EN RRHH
+// -------------------------------------------------------------------------
+function resolverSolicitudPermiso(p) {
+  const cred = p.clave || p.token || p.sessionToken;
+  const auth = cred
+    ? (p.usuario ? autenticarUsuario(p.usuario, cred) : buscarEmpleadoPorToken(cred))
+    : buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth) return { success: false, message: "Sesión no válida." };
+
+  const idTramite = String(p.idTramite || "").trim();
+  const decision = String(p.decision || "").trim().toUpperCase();
+  const observacion = String(p.observacion || "").trim();
+
+  const todas = obtenerTodasLasSolicitudes();
+  const item = todas.find(s => s.idTramite === idTramite);
+  if (!item) return { success: false, message: "Trámite no encontrado." };
+
+  // Si está en Pendiente_Companero, el Operario 2 responde primero antes de pasar a Jefatura
+  if (item.estado === "Pendiente_Companero" && item.cambioTurnoInfo) {
+    if (item.cambioTurnoInfo.reempUsuario.toLowerCase() !== auth.usuarioNorm) {
+      return { success: false, message: "Este trámite espera primero la aceptación del compañero/a asignado." };
+    }
+    return firmarCambioTurnoCompanero({
+      usuario: auth.usuario,
+      clave: p.clave || auth.sessionToken,
+      idTramite: idTramite,
+      decision: decision,
+      observacion: observacion
+    });
+  }
+
+  if (item.legajo === auth.legajo) {
+    return { success: false, message: "Por control interno no podés aprobar ni rechazar tu propia solicitud." };
+  }
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shSol = ss.getSheetByName("permisos_solicitudes");
+  const ahoraStr = Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm");
+
+  let urlNotaGenerada = "";
+  let mensajeRespuesta = "";
+
+  if (decision === "APROBAR") {
+    if (item.estado !== "Pendiente_Jefe") {
+      return { success: false, message: "El trámite ya no se encuentra pendiente de jefatura." };
+    }
+
+    if (esTipoCancelacionNombre(item.tipoPermiso)) {
+      const matchId = item.motivoRaw.match(/\[ANULA TRÁMITE (PRM-\d+)\]/);
+      const idOrig = matchId ? matchId[1] : "";
+      const orig = todas.find(s => s.idTramite === idOrig);
+
+      if (orig && orig.estado !== "Anulado") {
+        shSol.getRange(orig.fila, 14).setValue("Anulado");
+        shSol.getRange(orig.fila, 17).setValue(`Anulado mediante ${idTramite} por ${auth.nombre} el ${ahoraStr}`);
+
+        if (orig.esVacaciones && orig.cantDias > 0) {
+          ajustarSaldoEmpleado(orig.legajo, +orig.cantDias);
+        }
+      }
+
+      shSol.getRange(item.fila, 14).setValue("Aprobado_RRHH");
+      shSol.getRange(item.fila, 15).setValue(ahoraStr);
+      shSol.getRange(item.fila, 16).setValue(auth.nombre);
+      shSol.getRange(item.fila, 17).setValue(observacion || "Anulación autorizada.");
+      mensajeRespuesta = `✓ Anulación ${idTramite} aprobada. El trámite ${idOrig} quedó anulado y se reintegraron los días correspondientes.`;
+    } else if (item.esCambioTurno) {
+      shSol.getRange(item.fila, 14).setValue("Finalizado_RRHH");
+      shSol.getRange(item.fila, 15).setValue(ahoraStr);
+      shSol.getRange(item.fila, 16).setValue(`${auth.nombre} (Jefatura)`);
+      if (observacion) {
+        shSol.getRange(item.fila, 17).setValue(observacion);
+      }
+
+      urlNotaGenerada = generarNotaLicenciaRRHHPDF(item, `${auth.nombre} (Jefatura)`, ahoraStr);
+      if (urlNotaGenerada) {
+        shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
+      }
+
+      const { lista: todosEmp } = obtenerMapaEmpleados();
+      const destinatarios = [];
+      if (auth.correo) destinatarios.push(auth.correo);
+      const emp1 = todosEmp.find(e => e.legajo === item.legajo);
+      if (emp1 && emp1.correo) destinatarios.push(emp1.correo);
+      if (item.cambioTurnoInfo) {
+        const emp2 = todosEmp.find(e => e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase());
+        if (emp2 && emp2.correo) destinatarios.push(emp2.correo);
+      }
+      todosEmp.filter(e => e.accesoRRHH && e.correo).forEach(r => destinatarios.push(r.correo));
+
+      const unicos = Array.from(new Set(destinatarios));
+      if (unicos.length > 0 && urlNotaGenerada) {
+        enviarCorreoSilencioso(
+          unicos.join(","),
+          `[CEEZ] Cambio de Turno Aprobado (${idTramite}) - Nota PDF Lista para Firmas`,
+          `Se aprobó el Cambio de Turno ${idTramite} en el sector ${item.unidad} del ${item.fechaDesde} al ${item.fechaHasta} (${item.cantDias} día/s).\n\nDetalles: ${item.motivo}\nAutorizado por: ${auth.nombre}\n\nPodés descargar e imprimir la nota oficial para firma manuscrita desde el siguiente enlace (o desde el portal):\n${urlNotaGenerada}`
+        );
+      }
+
+      mensajeRespuesta = `✓ Cambio de Turno ${idTramite} aprobado. Se generó la Nota PDF para imprimir y firmar en el sector, y quedó registrada en RRHH.`;
+    } else {
+      if (item.esVacaciones && item.cantDias > 0) {
+        const okSaldo = ajustarSaldoEmpleado(item.legajo, -item.cantDias);
+        if (!okSaldo) {
+          return { success: false, message: "El empleado ya no cuenta con saldo suficiente de vacaciones." };
+        }
+      }
+
+      shSol.getRange(item.fila, 14).setValue("Aprobado_RRHH");
+      shSol.getRange(item.fila, 15).setValue(ahoraStr);
+      shSol.getRange(item.fila, 16).setValue(auth.nombre);
+      shSol.getRange(item.fila, 17).setValue(observacion || "Aprobado.");
+      mensajeRespuesta = `✓ Solicitud ${idTramite} aprobada y derivada a RRHH.`;
+    }
+  } else if (decision === "RECHAZAR") {
+    if (item.estado !== "Pendiente_Jefe") {
+      return { success: false, message: "El trámite ya no se encuentra pendiente de jefatura." };
+    }
+    shSol.getRange(item.fila, 14).setValue("Rechazado");
+    shSol.getRange(item.fila, 15).setValue(ahoraStr);
+    shSol.getRange(item.fila, 16).setValue(auth.nombre);
+    shSol.getRange(item.fila, 17).setValue(observacion || "Denegado por jefatura.");
+    mensajeRespuesta = `✕ Solicitud ${idTramite} denegada.`;
+  } else if (decision === "FINALIZAR_RRHH") {
+    if (!auth.accesoRRHH) {
+      return { success: false, message: "No tenés permisos de RRHH para finalizar trámites." };
+    }
+    shSol.getRange(item.fila, 14).setValue("Finalizado_RRHH");
+    shSol.getRange(item.fila, 15).setValue(ahoraStr);
+    shSol.getRange(item.fila, 16).setValue(`${item.resueltoPor} | Doc. RRHH: ${auth.nombre}`);
+
+    urlNotaGenerada = generarNotaLicenciaRRHHPDF(item, auth.nombre, ahoraStr);
+    if (urlNotaGenerada) {
+      shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
+    }
+    mensajeRespuesta = `✓ Documentación generada para ${idTramite}.`;
+  } else {
+    return { success: false, message: "Decisión no válida." };
+  }
+
+  const panel = obtenerPanelPermisos(auth.usuario, auth.sessionToken);
+  return {
+    success: true,
+    message: mensajeRespuesta,
+    urlNotaPDF: urlNotaGenerada,
+    bandejaAprobacion: panel.bandejaAprobacion,
+    bandejaRRHH: panel.bandejaRRHH,
+    empleadosRRHHAdmin: panel.empleadosRRHHAdmin,
+    historialSupervision: panel.historialSupervision
+  };
+}
+
+function ajustarSaldoEmpleado(legajo, deltaDias) {
+  const { sh, idx, lista } = obtenerMapaEmpleados();
+  const emp = lista.find(e => e.legajo === String(legajo).trim());
+  if (!emp) return false;
+  const nuevoSaldo = emp.diasVacaciones + deltaDias;
+  if (nuevoSaldo < 0) return false;
+  sh.getRange(emp.fila, idx.vacaciones + 1).setValue(nuevoSaldo);
+  return true;
+}
+
+// -------------------------------------------------------------------------
+// 6. GENERADOR DE NOTA PDF OFICIAL (LICENCIAS, ANULACIÓN Y CAMBIO DE TURNO)
+// -------------------------------------------------------------------------
+function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
+  try {
+    const { lista: todosEmpleados } = obtenerMapaEmpleados();
+    const emp1 = todosEmpleados.find(e => e.legajo === item.legajo) || {};
+    let html = "";
+
+    if (item.esCambioTurno && item.cambioTurnoInfo) {
+      const ct = item.cambioTurnoInfo;
+      const emp2 = todosEmpleados.find(e => e.usuarioNorm === ct.reempUsuario.toLowerCase()) || {};
+
+      html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f2937; padding: 32px; line-height: 1.45; }
+          .header { border-bottom: 3px solid #0d6efd; padding-bottom: 12px; margin-bottom: 20px; }
+          .title { font-size: 18px; font-weight: bold; color: #0d6efd; margin: 0; }
+          .subtitle { font-size: 12px; color: #6b7280; margin: 2px 0 0 0; }
+          .meta { background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 18px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 12px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+          th { background: #eff6ff; color: #1e3a8a; width: 32%; }
+          .box { border: 1px solid #cbd5e1; background: #f9fafb; padding: 12px; border-radius: 6px; font-size: 12px; margin-bottom: 32px; }
+          .firmas { width: 100%; margin-top: 55px; border: none; }
+          .firmas td { border: none; text-align: center; width: 33.3%; padding: 0 10px; vertical-align: top; }
+          .linea { border-top: 1px solid #374151; padding-top: 6px; font-size: 11px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <p class="title">COOPERATIVA DE ENERGÍA ELÉCTRICA DE ZAPALA</p>
+          <p class="subtitle">Constancia Interna de Cambio de Turno Operativo — Sector ${item.unidad}</p>
+        </div>
+
+        <div class="meta">
+          <strong>Trámite N°:</strong> ${item.idTramite} &nbsp;|&nbsp;
+          <strong>Fecha del Pedido:</strong> ${item.fechaSolicitud} &nbsp;|&nbsp;
+          <strong>Autorizado por:</strong> ${responsableNombre} (${fechaEmision})
+        </div>
+
+        <table>
+          <tr><th colspan="2" style="text-align:center; background:#dbeafe;">DATOS DE LA PERMUTA DE TURNO</th></tr>
+          <tr><th>Sector / Unidad</th><td>${item.unidad}</td></tr>
+          <tr><th>Período del Cambio</th><td>Del <strong>${item.fechaDesde}</strong> al <strong>${item.fechaHasta}</strong> (${item.cantDias} día/s)</td></tr>
+          <tr><th>Turno / Franco a Cubrir</th><td><strong>${ct.horario}</strong></td></tr>
+          ${ct.detalleLimpio ? `<tr><th>Observaciones</th><td>${ct.detalleLimpio}</td></tr>` : ''}
+        </table>
+
+        <table>
+          <tr>
+            <th style="width:50%; text-align:center; background:#dbeafe;">EMPLEADO SOLICITANTE (Operario 1)</th>
+            <th style="width:50%; text-align:center; background:#dbeafe;">EMPLEADO REEMPLAZANTE (Operario 2)</th>
+          </tr>
+          <tr>
+            <td>
+              <strong>Nombre:</strong> ${item.nombre}<br>
+              <strong>Legajo N°:</strong> ${item.legajo}<br>
+              <strong>DNI:</strong> ${emp1.dni || "-"}<br>
+              <strong>Conformidad Digital:</strong> Firmado al solicitar (${item.fechaSolicitud})
+            </td>
+            <td>
+              <strong>Nombre:</strong> ${ct.reempNombre}<br>
+              <strong>Legajo N°:</strong> ${ct.reempLegajo}<br>
+              <strong>DNI:</strong> ${emp2.dni || "-"}<br>
+              <strong>Conformidad Digital:</strong> ${item.obsResolucion || "Firmado electrónicamente"}
+            </td>
+          </tr>
+        </table>
+
+        <div class="box">
+          <strong>Declaración de Conformidad:</strong> Ambos agentes manifiestan su acuerdo voluntario para efectuar el cambio de turno/franco detallado precedentemente, sin que ello genere horas extras ni afectación al normal servicio del sector.
+        </div>
+
+        <table class="firmas">
+          <tr>
+            <td><div class="linea"><strong>${item.nombre}</strong><br>Firma Empleado Solicitante<br>Leg. ${item.legajo}</div></td>
+            <td><div class="linea"><strong>${ct.reempNombre}</strong><br>Firma Empleado Reemplazante<br>Leg. ${ct.reempLegajo}</div></td>
+            <td><div class="linea"><strong>Jefatura / Recepción RRHH</strong><br>Firma y Sello</div></td>
+          </tr>
+        </table>
+      </body>
+      </html>`;
+    } else {
+      html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f2937; padding: 36px; line-height: 1.5; }
+          .header { border-bottom: 3px solid #0d6efd; padding-bottom: 12px; margin-bottom: 24px; }
+          .title { font-size: 18px; font-weight: bold; color: #0d6efd; margin: 0; }
+          .subtitle { font-size: 12px; color: #6b7280; margin: 2px 0 0 0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+          th, td { border: 1px solid #cbd5e1; padding: 9px 12px; text-align: left; }
+          th { background: #f1f5f9; width: 35%; }
+          .firmas { width: 100%; margin-top: 70px; border: none; }
+          .firmas td { border: none; text-align: center; width: 50%; padding: 0 20px; }
+          .linea { border-top: 1px solid #374151; padding-top: 6px; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <p class="title">COOPERATIVA DE ENERGÍA ELÉCTRICA DE ZAPALA</p>
+          <p class="subtitle">Comprobante Oficial de Licencia / Permiso — Recursos Humanos</p>
+        </div>
+        <table>
+          <tr><th>Trámite N°</th><td><strong>${item.idTramite}</strong></td></tr>
+          <tr><th>Fecha de Solicitud</th><td>${item.fechaSolicitud}</td></tr>
+          <tr><th>Empleado/a</th><td><strong>${item.nombre}</strong></td></tr>
+          <tr><th>Legajo N°</th><td>${item.legajo}</td></tr>
+          <tr><th>DNI</th><td>${emp1.dni || "-"}</td></tr>
+          <tr><th>Sector / Unidad</th><td>${item.unidad}</td></tr>
+          <tr><th>Convenio Colectivo</th><td>${emp1.convenio || "-"}</td></tr>
+          <tr><th>Tipo de Licencia / Permiso</th><td><strong>${item.tipoPermiso}</strong></td></tr>
+          <tr><th>Período</th><td>Del <strong>${item.fechaDesde}</strong> al <strong>${item.fechaHasta}</strong></td></tr>
+          <tr><th>Días Computados</th><td><strong>${item.cantDias} día(s) (${item.tipoDiasAplicado})</strong></td></tr>
+          <tr><th>Detalle / Observaciones</th><td>${item.motivo || "-"}</td></tr>
+          <tr><th>Autorización Jefatura</th><td>${item.resueltoPor}</td></tr>
+          <tr><th>Documentación RRHH</th><td>Emitido por ${responsableNombre} el ${fechaEmision}</td></tr>
+        </table>
+        <table class="firmas">
+          <tr>
+            <td><div class="linea"><strong>${item.nombre}</strong><br>Firma del Empleado/a — Leg. ${item.legajo}</div></td>
+            <td><div class="linea"><strong>Recursos Humanos CEEZ</strong><br>Firma y Sello</div></td>
+          </tr>
+        </table>
+      </body>
+      </html>`;
+    }
+
+    const blob = Utilities.newBlob(html, "text/html", `Nota_${item.idTramite}.html`);
+    const pdfBlob = blob.getAs("application/pdf").setName(`Nota_${item.idTramite}_${item.nombre.replace(/\s+/g, "_")}.pdf`);
+    const folder = DriveApp.getFolderById(CARPETA_NOTAS_PDF_ID);
+    const file = folder.createFile(pdfBlob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return file.getUrl();
+  } catch (err) {
+    return "";
+  }
+}
+
+// -------------------------------------------------------------------------
+// 7. ADMINISTRACIÓN RRHH, DELEGACIONES Y COMPROBANTES
+// -------------------------------------------------------------------------
+function actualizarSaldoVacacionesRRHH(p) {
+  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth || !auth.accesoRRHH) return { success: false, message: "Sin permisos de RRHH." };
+
+  const legajoTarget = String(p.legajoTarget || "").trim();
+  const nuevosDias = Number(p.nuevosDias);
+  if (!legajoTarget || isNaN(nuevosDias) || nuevosDias < 0) {
+    return { success: false, message: "Datos inválidos." };
+  }
+
+  const { sh, idx, lista } = obtenerMapaEmpleados();
+  const emp = lista.find(e => e.legajo === legajoTarget);
+  if (!emp) return { success: false, message: "Empleado no encontrado." };
+
+  sh.getRange(emp.fila, idx.vacaciones + 1).setValue(nuevosDias);
+  return { success: true, message: `Saldo de ${emp.nombre} actualizado a ${nuevosDias} días.` };
+}
+
+function agregarFeriadoRRHH(p) {
+  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth || !auth.accesoRRHH) return { success: false, message: "Sin permisos de RRHH." };
+
+  const fecha = String(p.fecha || "").trim();
+  const descripcion = String(p.descripcion || "Feriado").trim();
+  if (!fecha) return { success: false, message: "Indicá una fecha." };
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ss.getSheetByName("feriados");
+  sh.appendRow([fecha, descripcion]);
+  return { success: true, feriados: obtenerFeriadosLista() };
+}
+
+function eliminarFeriadoRRHH(p) {
+  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth || !auth.accesoRRHH) return { success: false, message: "Sin permisos de RRHH." };
+
+  const fecha = String(p.fecha || "").trim();
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ss.getSheetByName("feriados");
+  const data = sh.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (formatearFechaISO(data[i][0]) === fecha) {
+      sh.deleteRow(i + 1);
+      break;
+    }
+  }
+  return { success: true, feriados: obtenerFeriadosLista() };
+}
+
+function toggleDelegacionRRHH(p) {
+  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth || auth.rolNorm !== "jefa_rrhh") {
+    return { success: false, message: "Solo la Jefa de RRHH puede gestionar estos accesos." };
+  }
+
+  const usrTarget = String(p.usuarioOperario || "").trim().toLowerCase();
+  const habilitar = String(p.habilitar) === "true" || p.habilitar === true;
+  const { sh, idx, lista } = obtenerMapaEmpleados();
+  const emp = lista.find(e => e.usuarioNorm === usrTarget);
+  if (!emp) return { success: false, message: "Operario no encontrado." };
+
+  sh.getRange(emp.fila, idx.accesoRRHH + 1).setValue(habilitar ? "SI" : "NO");
+  const panel = obtenerPanelPermisos(p.usuario, auth.sessionToken);
+  return { success: true, operariosDelegacion: panel.operariosDelegacion };
+}
+
+function toggleDelegacionJefe(p) {
+  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth || auth.rolNorm !== "jefe") {
+    return { success: false, message: "Solo el Jefe de Unidad puede delegar aprobaciones." };
+  }
+
+  const usrDel = String(p.usuarioDelegado || "").trim().toLowerCase();
+  const habilitar = String(p.habilitar) === "true" || p.habilitar === true;
+  const { sh, idx, lista } = obtenerMapaEmpleados();
+
+  if (idx.delegadoJefe === -1) {
+    return { success: false, message: "Falta la columna Delegado_Jefe en la hoja empleados." };
+  }
+
+  const activos = lista.filter(e => e.unidadNorm === auth.unidadNorm && e.esDelegadoJefe);
+  if (habilitar && activos.length >= 4) {
+    return { success: false, message: "Ya alcanzaste el máximo de 4 delegados activos en tu unidad." };
+  }
+
+  const target = lista.find(e => e.usuarioNorm === usrDel && e.unidadNorm === auth.unidadNorm);
+  if (!target) return { success: false, message: "Empleado no encontrado en tu unidad." };
+
+  sh.getRange(target.fila, idx.delegadoJefe + 1).setValue(habilitar ? "SI" : "NO");
+  const panel = obtenerPanelPermisos(p.usuario, auth.sessionToken);
+  return {
+    success: true,
+    message: habilitar ? `${target.nombre} habilitado/a como delegado.` : `Delegación revocada a ${target.nombre}.`,
+    empleadosSectorJefe: panel.empleadosSectorJefe
+  };
+}
+
+function subirComprobantePermiso(p) {
+  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  if (!auth) return { success: false, message: "Sesión no válida." };
+
+  const idTramite = String(p.idTramite || "").trim();
+  const fileName = String(p.fileName || "comprobante").trim();
+  const mimeType = String(p.mimeType || "application/pdf").trim();
+  const fileData = String(p.fileData || "").trim();
+
+  const todas = obtenerTodasLasSolicitudes();
+  const item = todas.find(s => s.idTramite === idTramite && s.legajo === auth.legajo);
+  if (!item) return { success: false, message: "Trámite no encontrado." };
+
+  const bytes = Utilities.base64Decode(fileData);
+  const blob = Utilities.newBlob(bytes, mimeType, `${idTramite}_${fileName}`);
+  const folder = DriveApp.getFolderById(CARPETA_COMPROBANTES_ID);
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const url = file.getUrl();
+
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const shSol = ss.getSheetByName("permisos_solicitudes");
+  shSol.getRange(item.fila, 19).setValue(url);
+
+  const panel = obtenerPanelPermisos(p.usuario, auth.sessionToken);
+  return {
+    success: true,
+    message: "Comprobante subido correctamente.",
+    misSolicitudes: panel.misSolicitudes
+  };
+}
+
+function enviarCorreoSilencioso(destinatario, asunto, cuerpo) {
+  try {
+    if (destinatario && destinatario.includes("@")) {
+      MailApp.sendEmail(destinatario, asunto, cuerpo);
+    }
+  } catch (e) {}
+}
+
+// -------------------------------------------------------------------------
+// 8. DIAGNÓSTICO DE PANEL DE PERMISOS
+// -------------------------------------------------------------------------
+function testPanelPermisos() {
+  const { lista } = obtenerMapaEmpleados();
+  const primerUsuario = lista.length > 0 ? lista[0].usuario : "cfigueroa";
+  const res = obtenerPanelPermisos(primerUsuario, "");
+  Logger.log("Usuario probado: " + primerUsuario);
+  Logger.log(JSON.stringify(res, null, 2));
+}
