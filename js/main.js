@@ -3,6 +3,7 @@ import { initAuthEvents } from './auth.js';
 import { initCapacitacionesEvents } from './capacitaciones.js';
 import { initPermisosEvents } from './permisos.js';
 import { initRRHHEvents } from './rrhh.js';
+import { initCambioTurno } from './cambio-turno.js';
 
 window.addEventListener('DOMContentLoaded', async () => {
   await limpiarCacheNavegador();
@@ -11,4 +12,5 @@ window.addEventListener('DOMContentLoaded', async () => {
   initCapacitacionesEvents();
   initPermisosEvents();
   initRRHHEvents();
+  initCambioTurno();
 });
