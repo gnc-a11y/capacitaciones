@@ -71,7 +71,6 @@ function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
     if (iframe) iframe.src = videoUrl || '';
     if (contenedorVideo) contenedorVideo.classList.toggle('d-none', !videoUrl);
     if (mensajeVideo) mensajeVideo.classList.toggle('d-none', Boolean(videoUrl));
-    }
   }
 
   renderCapacitaciones(datosSesion.capacitaciones || datosSesion.cursos || []);
