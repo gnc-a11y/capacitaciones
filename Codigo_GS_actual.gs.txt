@@ -5,6 +5,7 @@
 const SS_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 const CARPETA_COMPROBANTES_ID = "1sZ_gT4vU4vVCloI9x8JrvL6Y1xB6h15H";
 const CARPETA_NOTAS_PDF_ID = "1sZ_gT4vU4vVCloI9x8JrvL6Y1xB6h15H";
+const CARPETA_LICENCIAS_PDF_ID = "1WkvH-GgEHDVOHH1lje8E4Yx74YwEnnep";
 const LINK_PORTAL_WEB = "https://capacitacionesceez.com.ar";
 
 // -------------------------------------------------------------------------
@@ -1620,7 +1621,7 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
     }
 
     etapa = "acceder a la carpeta de notas en Drive";
-    const folder = DriveApp.getFolderById(CARPETA_NOTAS_PDF_ID);
+    const folder = DriveApp.getFolderById(CARPETA_LICENCIAS_PDF_ID);
     const nombrePdf = `Nota_${item.idTramite}_${item.nombre.replace(/\s+/g, "_")}.pdf`;
     const existentes = folder.getFilesByName(nombrePdf);
     let file = existentes.hasNext() ? existentes.next() : null;
