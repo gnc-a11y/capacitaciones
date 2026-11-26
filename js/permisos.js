@@ -460,8 +460,8 @@ function renderDetalleCambioTurno(s) {
   return `
     <div class="small text-secondary mt-1">
       <strong>Compañero/a:</strong> ${escapeHtml(cambio.reempNombre)} (Leg. ${escapeHtml(cambio.reempLegajo)})<br>
-      <strong>Turno original:</strong> ${escapeHtml(s.fechaDesde)} ${escapeHtml(cambio.horarioOriginal || cambio.horario)}<br>
-      <strong>Turno/franco a intercambiar:</strong> ${escapeHtml(s.fechaHasta)} ${escapeHtml(cambio.horarioCambio || '')}
+      <strong>Turno original:</strong> ${escapeHtml(s.fechaDesde)} ${escapeHtml(cambio.horarioOriginal || '(sin horario declarado)')}<br>
+      <strong>Turno/franco a intercambiar:</strong> ${escapeHtml(s.fechaHasta)} ${escapeHtml(cambio.horarioCambio || '(sin horario declarado)')}
       ${cambio.detalleLimpio ? `<br><strong>Observaciones:</strong> ${escapeHtml(cambio.detalleLimpio)}` : ''}
     </div>`;
 }
@@ -967,8 +967,25 @@ export function initPermisosEvents() {
     const modalidad = obtenerTipoDiasEfectivo(conf);
     const esCancel = esTipoCancelacion(conf);
     const esCambioTurno = esPermisoCambioTurno(tipoSel);
+    const inicioOriginal = document.getElementById('turnoDesdeOriginal').value;
+    const finOriginal = document.getElementById('turnoHastaOriginal').value;
+    const inicioCambio = document.getElementById('turnoDesdeCambio').value;
+    const finCambio = document.getElementById('turnoHastaCambio').value;
+    const horarioOriginal = inicioOriginal && finOriginal ? `${inicioOriginal}-${finOriginal}` : '';
+    const horarioCambio = inicioCambio && finCambio ? `${inicioCambio}-${finCambio}` : '';
+
+    if (esCambioTurno && (
+      Boolean(inicioOriginal) !== Boolean(finOriginal) ||
+      Boolean(inicioCambio) !== Boolean(finCambio)
+    )) {
+      msgDiv.className = "alert alert-danger mt-3";
+      msgDiv.innerText = "Si completás un horario, indicá inicio y fin; para un franco, dejá ambos vacíos.";
+      msgDiv.classList.remove('d-none');
+      return;
+    }
+
     const horarioCambioTurno = esCambioTurno
-      ? `Turno original: ${document.getElementById('turnoDesdeOriginal').value}-${document.getElementById('turnoHastaOriginal').value}; turno/franco a intercambiar: ${document.getElementById('turnoDesdeCambio').value}-${document.getElementById('turnoHastaCambio').value}`
+      ? `Turno original: ${horarioOriginal}; turno/franco a intercambiar: ${horarioCambio}`
       : '';
 
     const payload = {
@@ -979,11 +996,11 @@ export function initPermisosEvents() {
       companeroUsuario: esCambioTurno ? document.getElementById('turnoCompanero').value : '',
       horarioCambioTurno: horarioCambioTurno,
       fechaTurnoOriginal: esCambioTurno ? document.getElementById('turnoFechaOriginal').value : '',
-      inicioTurnoOriginal: esCambioTurno ? document.getElementById('turnoDesdeOriginal').value : '',
-      finTurnoOriginal: esCambioTurno ? document.getElementById('turnoHastaOriginal').value : '',
+      inicioTurnoOriginal: esCambioTurno ? inicioOriginal : '',
+      finTurnoOriginal: esCambioTurno ? finOriginal : '',
       fechaTurnoCambio: esCambioTurno ? document.getElementById('turnoFechaCambio').value : '',
-      inicioTurnoCambio: esCambioTurno ? document.getElementById('turnoDesdeCambio').value : '',
-      finTurnoCambio: esCambioTurno ? document.getElementById('turnoHastaCambio').value : '',
+      inicioTurnoCambio: esCambioTurno ? inicioCambio : '',
+      finTurnoCambio: esCambioTurno ? finCambio : '',
       idTramiteCancelar: esCancel ? document.getElementById('permisoTramiteCancelar').value : '',
       tipoDiasAplicado: modalidad,
       esVacaciones: conf ? conf.esVacaciones : false,
