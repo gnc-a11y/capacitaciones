@@ -898,10 +898,12 @@ function obtenerPanelPermisos(usuario, credencial) {
       conflictos: []
     }));
 
-  // Bandeja de Jefatura / Gerencia (solo trámites en Pendiente_Jefe)
+  // Bandeja de Jefatura / Gerencia: aprobaciones y notas GNC pendientes de generar
   let bandejaJefe = [];
   if (emp.rolNorm === "jefe" || emp.esDelegadoJefe || emp.rolNorm === "jefa_rrhh" || emp.rolNorm === "gerente") {
-    const pendientes = todasSolicitudes.filter(s => s.estado === "Pendiente_Jefe");
+    const pendientes = todasSolicitudes.filter(s =>
+      s.estado === "Pendiente_Jefe" || s.estado === "Aprobado_GNC_Pendiente_Nota"
+    );
     bandejaJefe = pendientes.filter(s => {
       if (s.legajo === emp.legajo) return false;
       if (s.esCambioTurno) {
@@ -930,6 +932,7 @@ function obtenerPanelPermisos(usuario, credencial) {
       }));
       return Object.assign({}, s, {
         esConfirmacionOperario2: false,
+        esReintentoNotaGNC: s.estado === "Aprobado_GNC_Pendiente_Nota",
         conflictos: conflictos
       });
     });
@@ -943,7 +946,8 @@ function obtenerPanelPermisos(usuario, credencial) {
 
   if (emp.accesoRRHH) {
     bandejaRRHH = todasSolicitudes.filter(s =>
-      s.estado === "Aprobado_RRHH" || s.estado === "Finalizado_RRHH" || s.estado === "Finalizado_GNC" || s.estado === "Anulado"
+      s.estado === "Aprobado_RRHH" || s.estado === "Finalizado_RRHH" ||
+      s.estado === "Finalizado_GNC" || s.estado === "Anulado"
     );
     empleadosRRHHAdmin = todosEmpleados.map(e => ({
       usuario: e.usuario,
@@ -1268,6 +1272,26 @@ function firmarCambioTurnoCompanero(p) {
   };
 }
 
+function notificarCambioTurnoAprobado(item, auth, urlNotaGenerada) {
+  const { lista: todosEmp } = obtenerMapaEmpleados();
+  const destinatarios = [];
+  if (auth.correo) destinatarios.push(auth.correo);
+  const emp1 = todosEmp.find(e => e.legajo === item.legajo);
+  if (emp1 && emp1.correo) destinatarios.push(emp1.correo);
+  if (item.cambioTurnoInfo) {
+    const emp2 = todosEmp.find(e => e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase());
+    if (emp2 && emp2.correo) destinatarios.push(emp2.correo);
+  }
+  const unicos = Array.from(new Set(destinatarios));
+  if (unicos.length > 0) {
+    enviarCorreoSilencioso(
+      unicos.join(","),
+      `[CEEZ] Cambio de Turno Aprobado (${item.idTramite}) - Nota PDF Lista para Firmas`,
+      `Se aprobó el Cambio de Turno ${item.idTramite} en el sector ${item.unidad}.\n\nDetalles: ${item.motivo}\nAutorizado por: ${auth.nombre}\n\nEl jefe directo debe descargar la nota, gestionar las firmas manuscritas y remitirla a RRHH por fuera de la plataforma. Podés descargarla desde el portal:\n${urlNotaGenerada}`
+    );
+  }
+}
+
 // -------------------------------------------------------------------------
 // 5. RESOLUCIÓN POR JEFATURA / GERENCIA Y FINALIZACIÓN EN RRHH
 // -------------------------------------------------------------------------
@@ -1346,35 +1370,22 @@ function resolverSolicitudPermiso(p) {
       shSol.getRange(item.fila, 17).setValue(observacion || "Anulación autorizada.");
       mensajeRespuesta = `✓ Anulación ${idTramite} aprobada. El trámite ${idOrig} quedó anulado y se reintegraron los días correspondientes.`;
     } else if (item.esCambioTurno) {
-      urlNotaGenerada = generarNotaLicenciaRRHHPDF(item, `${auth.nombre} (Jefatura)`, ahoraStr);
-      if (!urlNotaGenerada) {
-        return { success: false, message: "No se pudo generar la nota PDF en Drive. El trámite sigue pendiente para poder reintentar." };
-      }
-      shSol.getRange(item.fila, 14).setValue("Finalizado_GNC");
+      shSol.getRange(item.fila, 14).setValue("Aprobado_GNC_Pendiente_Nota");
       shSol.getRange(item.fila, 15).setValue(ahoraStr);
       shSol.getRange(item.fila, 16).setValue(`${auth.nombre} (Jefatura)`);
-      shSol.getRange(item.fila, 17).setValue(observacion || `Aprobado por ${auth.nombre} el ${ahoraStr}. Nota enviada a RRHH para recepción externa de firmas.`);
-      shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
+      shSol.getRange(item.fila, 17).setValue(observacion || `Aprobado por ${auth.nombre} el ${ahoraStr}.`);
 
-      const { lista: todosEmp } = obtenerMapaEmpleados();
-      const destinatarios = [];
-      if (auth.correo) destinatarios.push(auth.correo);
-      const emp1 = todosEmp.find(e => e.legajo === item.legajo);
-      if (emp1 && emp1.correo) destinatarios.push(emp1.correo);
-      if (item.cambioTurnoInfo) {
-        const emp2 = todosEmp.find(e => e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase());
-        if (emp2 && emp2.correo) destinatarios.push(emp2.correo);
+      const resultadoNota = generarNotaLicenciaRRHHPDF(item, `${auth.nombre} (Jefatura)`, ahoraStr);
+      urlNotaGenerada = resultadoNota.url;
+      if (urlNotaGenerada) {
+        shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
+        shSol.getRange(item.fila, 17).setValue(observacion || `Aprobado por ${auth.nombre} el ${ahoraStr}. Nota PDF generada.`);
+        shSol.getRange(item.fila, 14).setValue("Finalizado_GNC");
+        notificarCambioTurnoAprobado(item, auth, urlNotaGenerada);
+        mensajeRespuesta = `✓ Cambio de turno/franco ${idTramite} aprobado y finalizado por Jefatura GNC. La nota con los tres espacios de firma se generó en Drive.`;
+      } else {
+        mensajeRespuesta = `✓ La aprobación de jefatura quedó registrada. No se pudo generar la nota PDF: ${resultadoNota.error || "error no identificado"}. El trámite quedó disponible para reintentar la nota desde la bandeja.`;
       }
-      const unicos = Array.from(new Set(destinatarios));
-      if (unicos.length > 0 && urlNotaGenerada) {
-        enviarCorreoSilencioso(
-          unicos.join(","),
-          `[CEEZ] Cambio de Turno Aprobado (${idTramite}) - Nota PDF Lista para Firmas`,
-          `Se aprobó el Cambio de Turno ${idTramite} en el sector ${item.unidad}.\n\nDetalles: ${item.motivo}\nAutorizado por: ${auth.nombre}\n\nEl jefe directo debe descargar la nota, gestionar las firmas manuscritas y remitirla a RRHH por fuera de la plataforma. Podés descargarla desde el portal:\n${urlNotaGenerada}`
-        );
-      }
-
-      mensajeRespuesta = `✓ Cambio de turno/franco ${idTramite} aprobado y finalizado por Jefatura GNC. La nota con los tres espacios de firma se generó en Drive; descargala para gestionar las firmas por fuera de la plataforma. RRHH y Gerencia podrán consultarla en el historial.`;
     } else {
       if (item.esVacaciones && item.cantDias > 0) {
         const okSaldo = ajustarSaldoEmpleado(item.legajo, -item.cantDias);
@@ -1398,6 +1409,24 @@ function resolverSolicitudPermiso(p) {
     shSol.getRange(item.fila, 16).setValue(auth.nombre);
     shSol.getRange(item.fila, 17).setValue(observacion || "Denegado por jefatura.");
     mensajeRespuesta = `✕ Solicitud ${idTramite} denegada.`;
+  } else if (decision === "REGENERAR_NOTA_GNC") {
+    if (!item.esCambioTurno || item.estado !== "Aprobado_GNC_Pendiente_Nota") {
+      return { success: false, message: "No hay una nota de cambio de turno pendiente de generar." };
+    }
+    const resultadoNota = generarNotaLicenciaRRHHPDF(
+      item,
+      item.resueltoPor || `${auth.nombre} (Jefatura)`,
+      item.fechaResolucion || ahoraStr
+    );
+    if (!resultadoNota.url) {
+      mensajeRespuesta = `La aprobación ya está registrada, pero la nota sigue pendiente: ${resultadoNota.error || "error no identificado"}. Podés volver a intentar desde la bandeja.`;
+    } else {
+      urlNotaGenerada = resultadoNota.url;
+      shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
+      shSol.getRange(item.fila, 14).setValue("Finalizado_GNC");
+      notificarCambioTurnoAprobado(item, auth, urlNotaGenerada);
+      mensajeRespuesta = `✓ Nota PDF de ${idTramite} generada y guardada en Drive.`;
+    }
   } else if (decision === "FINALIZAR_RRHH") {
     if (!auth.accesoRRHH) {
       return { success: false, message: "No tenés permisos de RRHH para finalizar trámites." };
@@ -1409,11 +1438,14 @@ function resolverSolicitudPermiso(p) {
     shSol.getRange(item.fila, 15).setValue(ahoraStr);
     shSol.getRange(item.fila, 16).setValue(`${item.resueltoPor} | Doc. RRHH: ${auth.nombre}`);
 
-    urlNotaGenerada = generarNotaLicenciaRRHHPDF(item, auth.nombre, ahoraStr);
+    const resultadoNota = generarNotaLicenciaRRHHPDF(item, auth.nombre, ahoraStr);
+    urlNotaGenerada = resultadoNota.url;
     if (urlNotaGenerada) {
       shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
     }
-    mensajeRespuesta = `✓ Documentación generada para ${idTramite}.`;
+    mensajeRespuesta = urlNotaGenerada
+      ? `✓ Documentación generada para ${idTramite}.`
+      : `No se pudo generar la nota PDF: ${resultadoNota.error || "error no identificado"}.`;
   } else {
     return { success: false, message: "Decisión no válida." };
   }
@@ -1453,6 +1485,7 @@ function escaparHtmlNota(valor) {
 // 6. GENERADOR DE NOTA PDF OFICIAL (LICENCIAS, ANULACIÓN Y CAMBIO DE TURNO)
 // -------------------------------------------------------------------------
 function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
+  let etapa = "leer datos de empleados";
   try {
     const { lista: todosEmpleados } = obtenerMapaEmpleados();
     const emp1 = todosEmpleados.find(e => e.legajo === item.legajo) || {};
@@ -1586,13 +1619,27 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
       </html>`;
     }
 
-    const blob = Utilities.newBlob(html, "text/html", `Nota_${item.idTramite}.html`);
-    const pdfBlob = blob.getAs("application/pdf").setName(`Nota_${item.idTramite}_${item.nombre.replace(/\s+/g, "_")}.pdf`);
+    etapa = "acceder a la carpeta de notas en Drive";
     const folder = DriveApp.getFolderById(CARPETA_NOTAS_PDF_ID);
-    const file = folder.createFile(pdfBlob);
+    const nombrePdf = `Nota_${item.idTramite}_${item.nombre.replace(/\s+/g, "_")}.pdf`;
+    const existentes = folder.getFilesByName(nombrePdf);
+    let file = existentes.hasNext() ? existentes.next() : null;
+    if (!file) {
+      etapa = "convertir y crear el archivo PDF";
+      const blob = Utilities.newBlob(html, "text/html", `Nota_${item.idTramite}.html`);
+      const pdfBlob = blob.getAs("application/pdf").setName(nombrePdf);
+      file = folder.createFile(pdfBlob);
+    }
+
     if (item.esCambioTurno && item.cambioTurnoInfo) {
-      const emp2 = todosEmpleados.find(e => e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase()) || {};
-      const emails = new Set(
+      etapa = "compartir la nota con el jefe aprobador";
+      const jefe = todosEmpleados.find(e => e.usuarioNorm === item.aprobadorUsuario);
+      const emailJefe = String(jefe && jefe.correo || "").trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailJefe)) {
+        return { url: "", error: "No se encontró un correo válido para compartir la nota con el jefe aprobador." };
+      }
+
+      const emails = Array.from(new Set(
         todosEmpleados
           .filter(e =>
             e.accesoRRHH ||
@@ -1603,14 +1650,35 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
           )
           .map(e => String(e.correo || "").trim().toLowerCase())
           .filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      );
-      emails.forEach(email => file.addViewer(email));
+      ));
+      const emailsOrdenados = [emailJefe].concat(emails.filter(email => email !== emailJefe));
+      const propietario = file.getOwner();
+      const emailPropietario = String(propietario && propietario.getEmail() || "").trim().toLowerCase();
+      const erroresCompartir = [];
+      emailsOrdenados.forEach(email => {
+        if (email === emailPropietario) return;
+        try {
+          file.addViewer(email);
+        } catch (err) {
+          console.error(`No se pudo compartir la nota ${item.idTramite} con un destinatario autorizado: ${err.message || err}`);
+          erroresCompartir.push(email);
+        }
+      });
+      if (erroresCompartir.includes(emailJefe)) {
+        throw new Error("Drive no permitió compartir la nota con el jefe aprobador.");
+      }
+      if (erroresCompartir.length) {
+        console.warn(`La nota ${item.idTramite} se generó, pero falló el acceso para ${erroresCompartir.length} destinatario(s) adicional(es).`);
+      }
     } else {
+      etapa = "configurar el acceso a la nota";
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     }
-    return file.getUrl();
+    return { url: file.getUrl(), error: "" };
   } catch (err) {
-    return "";
+    const detalle = err && err.message ? err.message : String(err);
+    console.error(`Error al generar la nota ${item.idTramite} durante la etapa "${etapa}": ${detalle}\n${err && err.stack ? err.stack : ""}`);
+    return { url: "", error: `falló la etapa "${etapa}" (${detalle})` };
   }
 }
 
