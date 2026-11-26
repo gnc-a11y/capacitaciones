@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { callGAS } from './api.js';
-import { limpiarCacheNavegador } from './ui.js';
+import { limpiarCacheNavegador, safeExternalUrl } from './ui.js';
 import { renderCapacitaciones } from './capacitaciones.js';
 import { inicializarModuloPermisos } from './permisos.js';
 
@@ -54,12 +54,16 @@ function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
     document.getElementById('barraNavegacion')?.classList.remove('d-none');
     document.getElementById('vistaVideoIntro')?.classList.remove('d-none');
 
-    let videoUrl = res.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE";
-    if (!videoUrl.includes('autoplay=1')) {
-      videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-    }
+    let videoUrl = safeExternalUrl(res.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE");
     const iframe = document.getElementById('iframeVideoIntro');
-    if (iframe) iframe.src = videoUrl;
+    if (iframe && videoUrl) {
+      if (!videoUrl.includes('autoplay=1')) {
+        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+      }
+      iframe.src = videoUrl;
+    } else if (iframe) {
+      iframe.src = '';
+    }
   }
 
   renderCapacitaciones(res.capacitaciones);
@@ -181,6 +185,17 @@ export function initAuthEvents() {
       if (res && res.success) {
         msgDiv.className = "alert alert-success mt-3";
         msgDiv.innerText = res.message;
+        const nuevoToken = res.token || res.sessionToken;
+        if (nuevoToken) {
+          state.tokenSesion = nuevoToken;
+          if (state.usuarioActual) {
+            state.usuarioActual.token = nuevoToken;
+            state.usuarioActual.sessionToken = nuevoToken;
+          }
+          try {
+            sessionStorage.setItem('ceez_sesion_token', nuevoToken);
+          } catch (e) {}
+        }
         document.getElementById('alertaClaveDefecto').classList.add('d-none');
         document.getElementById('formCambiarClave').reset();
         if (state.usuarioActual) document.getElementById('ccUsuario').value = state.usuarioActual.usuario;

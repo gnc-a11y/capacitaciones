@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { callGAS } from './api.js';
+import { escapeHtml } from './ui.js';
 
 export function renderPanelDelegacionRRHH(operarios) {
   const cont = document.getElementById('listaOperariosDelegacionRRHH');
@@ -13,15 +14,15 @@ export function renderPanelDelegacionRRHH(operarios) {
     item.className = 'list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2';
     item.innerHTML = `
       <div>
-        <strong class="small">${op.nombre}</strong> <span class="text-muted small">(Leg. ${op.legajo})</span><br>
+        <strong class="small">${escapeHtml(op.nombre)}</strong> <span class="text-muted small">(Leg. ${escapeHtml(op.legajo)})</span><br>
         <span class="badge ${op.accesoRRHH ? 'bg-success' : 'bg-secondary'}">
           ${op.accesoRRHH ? '✓ Acceso Completo Habilitado' : '🔒 Bloqueado'}
         </span>
       </div>
       <div>
         ${op.accesoRRHH
-          ? `<button class="btn btn-outline-danger btn-sm fw-bold btn-toggle-rrhh" data-usr="${op.usuario}" data-hab="false">🚫 Bloquear</button>`
-          : `<button class="btn btn-success btn-sm fw-bold btn-toggle-rrhh" data-usr="${op.usuario}" data-hab="true">✓ Habilitar</button>`
+          ? `<button class="btn btn-outline-danger btn-sm fw-bold btn-toggle-rrhh" data-usr="${escapeHtml(op.usuario)}" data-hab="false">🚫 Bloquear</button>`
+          : `<button class="btn btn-success btn-sm fw-bold btn-toggle-rrhh" data-usr="${escapeHtml(op.usuario)}" data-hab="true">✓ Habilitar</button>`
         }
       </div>`;
     cont.appendChild(item);
@@ -81,7 +82,7 @@ function guardarSaldoVacacionesRRHH() {
     action: 'actualizarSaldoVacaciones',
     usuario: state.usuarioActual.usuario,
     clave: state.claveSesionTemporal,
-    legajoEmpleado: leg,
+    legajoTarget: leg,
     nuevosDias: nuevosDias
   }, function(res) {
     btn.disabled = false;
@@ -104,7 +105,7 @@ export function renderFeriadosRRHH() {
   state.feriadosGlobal.sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(f => {
     const span = document.createElement('span');
     span.className = 'badge bg-light text-dark border p-2';
-    span.innerHTML = `${f.fecha} (${f.desc}) <a href="#" class="text-danger text-decoration-none ms-1 btn-del-feriado" data-fecha="${f.fecha}">✕</a>`;
+    span.innerHTML = `${escapeHtml(f.fecha)} (${escapeHtml(f.desc)}) <a href="#" class="text-danger text-decoration-none ms-1 btn-del-feriado" data-fecha="${escapeHtml(f.fecha)}">✕</a>`;
     cont.appendChild(span);
   });
 
@@ -122,8 +123,7 @@ function agregarFeriadoRRHH() {
   if (!fecha) return;
 
   callGAS({
-    action: 'gestionarFeriado',
-    subAction: 'agregar',
+    action: 'agregarFeriado',
     usuario: state.usuarioActual.usuario,
     clave: state.claveSesionTemporal,
     fecha: fecha,
@@ -140,8 +140,7 @@ function agregarFeriadoRRHH() {
 
 function eliminarFeriadoRRHH(fecha) {
   callGAS({
-    action: 'gestionarFeriado',
-    subAction: 'eliminar',
+    action: 'eliminarFeriado',
     usuario: state.usuarioActual.usuario,
     clave: state.claveSesionTemporal,
     fecha: fecha

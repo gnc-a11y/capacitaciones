@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { callGAS } from './api.js';
+import { escapeHtml, safeExternalUrl } from './ui.js';
 
 export function renderCapacitaciones(lista) {
   const cont = document.getElementById('listaCapacitaciones');
@@ -9,16 +10,17 @@ export function renderCapacitaciones(lista) {
     let botonExamen = '';
     if (cap.aprobado) {
       badgeEstado = `<span class="badge badge-status badge-aprobado">✓ Aprobado</span>`;
-      botonExamen = `<button class="btn btn-outline-primary w-100 mb-2 btn-rendir-cap" data-titulo="${cap.titulo}">Rendir Nuevamente</button>`;
-      if (cap.urlCertificado) {
-        botonExamen += `<a href="${cap.urlCertificado}" target="_blank" class="btn btn-success w-100 fw-bold">📄 Ver / Descargar Certificado</a>`;
+      botonExamen = `<button class="btn btn-outline-primary w-100 mb-2 btn-rendir-cap" data-titulo="${escapeHtml(cap.titulo)}">Rendir Nuevamente</button>`;
+      const certificadoUrl = safeExternalUrl(cap.urlCertificado);
+      if (certificadoUrl) {
+        botonExamen += `<a href="${escapeHtml(certificadoUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-success w-100 fw-bold">📄 Ver / Descargar Certificado</a>`;
       }
     } else if (cap.bloqueado) {
       badgeEstado = `<span class="badge badge-status badge-bloqueado">Límite de 3 intentos alcanzado hoy</span>`;
       botonExamen = `<button class="btn btn-secondary w-100" disabled>Bloqueado por hoy</button>`;
     } else {
-      badgeEstado = `<span class="badge badge-status badge-intentos">Intentos hoy: ${cap.intentosHoy}/3</span>`;
-      botonExamen = `<button class="btn btn-primary w-100 btn-rendir-cap" data-titulo="${cap.titulo}">Rendir Examen</button>`;
+      badgeEstado = `<span class="badge badge-status badge-intentos">Intentos hoy: ${escapeHtml(cap.intentosHoy)}/3</span>`;
+      botonExamen = `<button class="btn btn-primary w-100 btn-rendir-cap" data-titulo="${escapeHtml(cap.titulo)}">Rendir Examen</button>`;
     }
 
     const col = document.createElement('div');
@@ -26,12 +28,12 @@ export function renderCapacitaciones(lista) {
     col.innerHTML = `
       <div class="card card-custom h-100 p-4 d-flex flex-column justify-content-between">
         <div>
-          <h5 class="fw-bold text-dark mb-2">${cap.titulo}</h5>
-          <p class="text-muted small mb-3">${cap.descripcion}</p>
+          <h5 class="fw-bold text-dark mb-2">${escapeHtml(cap.titulo)}</h5>
+          <p class="text-muted small mb-3">${escapeHtml(cap.descripcion)}</p>
           <div class="mb-3">${badgeEstado}</div>
         </div>
         <div>
-          <button class="btn btn-outline-secondary w-100 mb-2 btn-ver-material" data-titulo="${cap.titulo}" data-url="${cap.urlDrive}">Ver Material (PDF)</button>
+          <button class="btn btn-outline-secondary w-100 mb-2 btn-ver-material" data-titulo="${escapeHtml(cap.titulo)}" data-url="${escapeHtml(safeExternalUrl(cap.urlDrive) || '')}" ${safeExternalUrl(cap.urlDrive) ? '' : 'disabled'}>Ver Material (PDF)</button>
           ${botonExamen}
         </div>
       </div>`;
@@ -48,7 +50,12 @@ export function renderCapacitaciones(lista) {
 
 function verContenido(titulo, url) {
   document.getElementById('tituloContenido').innerText = titulo;
-  document.getElementById('btnLinkDrive').href = url;
+  const safeUrl = safeExternalUrl(url);
+  const link = document.getElementById('btnLinkDrive');
+  link.href = safeUrl || '#';
+  link.rel = 'noopener noreferrer';
+  link.setAttribute('aria-disabled', safeUrl ? 'false' : 'true');
+  link.hidden = !safeUrl;
   new window.bootstrap.Modal(document.getElementById('modalContenido')).show();
 }
 
@@ -64,7 +71,7 @@ function iniciarExamen(titulo) {
       state.preguntasActuales = res.preguntas;
       renderPreguntas(res.preguntas);
     } else {
-      document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al cargar preguntas.'}</div>`;
+      document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${escapeHtml(res ? res.message : 'Error al cargar preguntas.')}</div>`;
       document.getElementById('footerExamen').classList.add('d-none');
     }
   });
@@ -73,15 +80,15 @@ function iniciarExamen(titulo) {
 function renderPreguntas(preguntas) {
   let html = '';
   preguntas.forEach((p, idx) => {
-    html += `<div class="mb-4 p-3 border rounded bg-light"><p class="fw-bold mb-2">${idx + 1}. ${p.enunciado}</p>`;
+    html += `<div class="mb-4 p-3 border rounded bg-light"><p class="fw-bold mb-2">${idx + 1}. ${escapeHtml(p.enunciado)}</p>`;
     Object.keys(p.opciones).forEach(key => {
       const isMultiple = p.correctas.length > 1;
       const inputType = isMultiple ? 'checkbox' : 'radio';
       const inputName = isMultiple ? `p_${idx}_${key}` : `p_${idx}`;
       html += `
         <div class="form-check my-1">
-          <input class="form-check-input" type="${inputType}" name="${inputName}" value="${key}" id="p_${idx}_${key}">
-          <label class="form-check-label" for="p_${idx}_${key}">${p.opciones[key]}</label>
+          <input class="form-check-input" type="${inputType}" name="${escapeHtml(inputName)}" value="${escapeHtml(key)}" id="p_${idx}_${escapeHtml(key)}">
+          <label class="form-check-label" for="p_${idx}_${escapeHtml(key)}">${escapeHtml(p.opciones[key])}</label>
         </div>`;
     });
     html += `</div>`;
@@ -130,17 +137,18 @@ function evaluarExamen() {
         <div class="alert ${aprobado ? "alert-success" : "alert-danger"} text-center p-4">
           <h4>${aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada"}</h4>
           <p class="fs-5 my-2">Tu nota fue: <strong>${nota}%</strong> (Mínimo: 60%)</p>`;
-      if (aprobado && res.urlCertificado) {
-        htmlRes += `<div class="mt-4"><a href="${res.urlCertificado}" target="_blank" class="btn btn-success btn-lg fw-bold">🎓 Abrir / Descargar Certificado (PDF)</a></div>`;
+      const certificadoUrl = safeExternalUrl(res.urlCertificado);
+      if (aprobado && certificadoUrl) {
+        htmlRes += `<div class="mt-4"><a href="${escapeHtml(certificadoUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg fw-bold">🎓 Abrir / Descargar Certificado (PDF)</a></div>`;
       }
       htmlRes += `</div>`;
       document.getElementById('cuerpoExamen').innerHTML = htmlRes;
 
-      callGAS({ action: 'login', usuario: state.usuarioActual.usuario, clave: state.claveSesionTemporal }, function(refreshRes) {
+      callGAS({ action: 'sincronizarSesion', token: state.tokenSesion }, function(refreshRes) {
         if (refreshRes && refreshRes.success) renderCapacitaciones(refreshRes.capacitaciones);
       });
     } else {
-      document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${res ? res.message : 'Error al guardar resultado.'}</div>`;
+      document.getElementById('cuerpoExamen').innerHTML = `<div class="alert alert-danger">${escapeHtml(res ? res.message : 'Error al guardar resultado.')}</div>`;
     }
   });
 }
