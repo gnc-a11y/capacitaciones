@@ -516,6 +516,17 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
   const badgeSubJef = document.getElementById('badgeSubTabJef');
   const pillJef = document.getElementById('pillPendientesBandeja');
   const badgeSubRRHH = document.getElementById('badgeSubTabRRHH');
+  const contBandejaJefe = document.getElementById('listaBandejaJefe');
+  const valoresInputsPrevios = {};
+  let focoPrevio = null;
+  let posicionFoco = null;
+  contBandejaJefe.querySelectorAll('input[id^="obs_"], input[id^="firmaUsr_"], input[id^="firmaClave_"]').forEach(inp => {
+    valoresInputsPrevios[inp.id] = inp.value;
+    if (inp === document.activeElement) {
+      focoPrevio = inp.id;
+      posicionFoco = typeof inp.selectionStart === 'number' ? inp.selectionStart : null;
+    }
+  });
 
   const esJefatura = rolNorm === 'jefe' || rolNorm === 'gerente' || rolNorm === 'jefa_rrhh' || esDelegadoJefe;
   const tieneConfirmacionesTurno = bandejaJefe.some(s => s.esConfirmacionOperario2);
@@ -533,11 +544,7 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
       badgeSubJef.classList.add('d-none');
     }
 
-    const cont = document.getElementById('listaBandejaJefe');
-    const obsPrevias = {};
-    cont.querySelectorAll('input[id^="obs_"]').forEach(inp => {
-      if (inp.value) obsPrevias[inp.id] = inp.value;
-    });
+    const cont = contBandejaJefe;
 
     if (!bandejaJefe.length) {
       cont.innerHTML = '<p class="text-muted small mb-0">No tenés solicitudes pendientes de aprobación.</p>';
@@ -606,10 +613,19 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
       });
       cont.innerHTML = html;
 
-      Object.keys(obsPrevias).forEach(idInp => {
+      Object.keys(valoresInputsPrevios).forEach(idInp => {
         const el = document.getElementById(idInp);
-        if (el) el.value = obsPrevias[idInp];
+        if (el) el.value = valoresInputsPrevios[idInp];
       });
+      if (focoPrevio) {
+        const el = document.getElementById(focoPrevio);
+        if (el) {
+          el.focus();
+          if (posicionFoco !== null && typeof el.setSelectionRange === 'function') {
+            el.setSelectionRange(posicionFoco, posicionFoco);
+          }
+        }
+      }
 
       cont.querySelectorAll('.btn-resolver').forEach(btn => {
         btn.addEventListener('click', () => resolverTramite(btn.dataset.id, btn.dataset.dec));
@@ -866,6 +882,7 @@ function renderPanelDelegacionJefe(listaEmpleados) {
 
 function poblarSelectCandidatosJefe(disponibles) {
   const sel = document.getElementById('selectCandidatoDelegadoJefe');
+  const seleccionado = sel.value;
   if (!disponibles.length) {
     sel.innerHTML = '<option value="">No hay más empleados disponibles...</option>';
     return;
@@ -874,6 +891,9 @@ function poblarSelectCandidatosJefe(disponibles) {
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
     .map(d => `<option value="${escapeHtml(d.usuario)}">${escapeHtml(d.nombre)} (Leg. ${escapeHtml(d.legajo)})</option>`)
     .join('');
+  if ([...sel.options].some(option => option.value === seleccionado)) {
+    sel.value = seleccionado;
+  }
 }
 
 function filtrarSelectDelegadosJefe() {
