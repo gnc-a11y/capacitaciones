@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { callGAS } from './api.js';
-import { limpiarCacheNavegador, safeExternalUrl } from './ui.js';
+import { limpiarCacheNavegador, youtubeEmbedUrl } from './ui.js';
 import { renderCapacitaciones } from './capacitaciones.js';
 import { inicializarModuloPermisos } from './permisos.js';
 
@@ -64,15 +64,13 @@ function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
     document.getElementById('barraNavegacion')?.classList.remove('d-none');
     document.getElementById('vistaVideoIntro')?.classList.remove('d-none');
 
-    let videoUrl = safeExternalUrl(datosSesion.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE");
+    const videoUrl = youtubeEmbedUrl(datosSesion.videoIntroUrl);
     const iframe = document.getElementById('iframeVideoIntro');
-    if (iframe && videoUrl) {
-      if (!videoUrl.includes('autoplay=1')) {
-        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-      }
-      iframe.src = videoUrl;
-    } else if (iframe) {
-      iframe.src = '';
+    const contenedorVideo = document.getElementById('contenedorVideoIntro');
+    const mensajeVideo = document.getElementById('mensajeVideoIntro');
+    if (iframe) iframe.src = videoUrl || '';
+    if (contenedorVideo) contenedorVideo.classList.toggle('d-none', !videoUrl);
+    if (mensajeVideo) mensajeVideo.classList.toggle('d-none', Boolean(videoUrl));
     }
   }
 

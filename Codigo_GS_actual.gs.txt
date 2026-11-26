@@ -251,12 +251,14 @@ function construirCursosDeEmpleado(emp) {
   let videoIntroUrl = "";
   if (shYt && shYt.getLastRow() >= 2) {
     const ytData = shYt.getDataRange().getValues();
-    for (let i = 1; i < ytData.length; i++) {
-      const cell = ytData[i].find(v => String(v || "").includes("http"));
-      if (cell) {
-        videoIntroUrl = String(cell).trim();
-        break;
-      }
+    const encabezados = ytData[0].map(v => String(v || "").trim().toLowerCase());
+    const idxParametro = encabezados.indexOf("parametro");
+    const idxValor = encabezados.indexOf("valor");
+    if (idxParametro >= 0 && idxValor >= 0) {
+      const filaVideo = ytData.slice(1).find(fila =>
+        String(fila[idxParametro] || "").trim().toLowerCase() === "url_video"
+      );
+      if (filaVideo) videoIntroUrl = String(filaVideo[idxValor] || "").trim();
     }
   }
 
@@ -977,16 +979,6 @@ function obtenerPanelPermisos(usuario, credencial) {
     historialSupervision = todasSolicitudes.filter(s => s.unidadNorm === emp.unidadNorm);
   }
 
-  const archivoNotasSector = emp.rolNorm === "jefe"
-    ? todasSolicitudes.filter(s =>
-      s.unidadNorm === emp.unidadNorm &&
-      (s.estado === "Finalizado_RRHH" ||
-       s.estado === "Finalizado_GNC" ||
-       s.estado === "Aprobado_GNC_Pendiente_Nota") &&
-      !!String(s.urlNotaPDF || "").trim()
-    )
-    : [];
-
   let empleadosSectorJefe = [];
   if (emp.rolNorm === "jefe") {
     empleadosSectorJefe = todosEmpleados
@@ -1016,7 +1008,6 @@ function obtenerPanelPermisos(usuario, credencial) {
     empleadosRRHHAdmin: empleadosRRHHAdmin,
     operariosDelegacion: operariosDelegacion,
     historialSupervision: historialSupervision,
-    archivoNotasSector: archivoNotasSector,
     empleadosSectorJefe: empleadosSectorJefe
   };
 }
@@ -1470,8 +1461,7 @@ function resolverSolicitudPermiso(p) {
     bandejaAprobacion: panel.bandejaAprobacion,
     bandejaRRHH: panel.bandejaRRHH,
     empleadosRRHHAdmin: panel.empleadosRRHHAdmin,
-    historialSupervision: panel.historialSupervision,
-    archivoNotasSector: panel.archivoNotasSector
+    historialSupervision: panel.historialSupervision
   };
 }
 

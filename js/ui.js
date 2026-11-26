@@ -18,6 +18,29 @@ export function safeExternalUrl(value) {
   }
 }
 
+export function youtubeEmbedUrl(value) {
+  const safeUrl = safeExternalUrl(value);
+  if (!safeUrl) return null;
+
+  const url = new URL(safeUrl);
+  let videoId = '';
+  if (url.hostname === 'youtu.be') {
+    videoId = url.pathname.split('/').filter(Boolean)[0] || '';
+  } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(url.hostname)) {
+    if (url.pathname === '/watch') {
+      videoId = url.searchParams.get('v') || '';
+    } else {
+      const match = url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/);
+      videoId = match ? match[1] : '';
+    }
+  }
+
+  if (!/^[\w-]{11}$/.test(videoId)) return null;
+  const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`);
+  embedUrl.searchParams.set('autoplay', '1');
+  return embedUrl.href;
+}
+
 export async function limpiarCacheNavegador(borrarSesion = false) {
   try {
     if (borrarSesion) {
@@ -46,11 +69,11 @@ export function cambiarPestana(pestana) {
 }
 
 export function cambiarSubPestana(tab) {
-  ['subTabPersonal', 'subTabJefatura', 'subTabRRHH', 'subTabHistorialGlobal', 'subTabNotasSector'].forEach(id => {
+  ['subTabPersonal', 'subTabJefatura', 'subTabRRHH', 'subTabHistorialGlobal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-  ['vistaSubPersonal', 'vistaSubJefatura', 'vistaSubRRHH', 'vistaSubHistorial', 'vistaSubNotasSector'].forEach(id => {
+  ['vistaSubPersonal', 'vistaSubJefatura', 'vistaSubRRHH', 'vistaSubHistorial'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('d-none');
   });
@@ -67,9 +90,6 @@ export function cambiarSubPestana(tab) {
   } else if (tab === 'historial') {
     document.getElementById('subTabHistorialGlobal').classList.add('active');
     document.getElementById('vistaSubHistorial').classList.remove('d-none');
-  } else if (tab === 'notasSector') {
-    document.getElementById('subTabNotasSector').classList.add('active');
-    document.getElementById('vistaSubNotasSector').classList.remove('d-none');
   }
 }
 
@@ -82,8 +102,6 @@ export function initUIEvents() {
   document.getElementById('subTabJefatura').addEventListener('click', () => cambiarSubPestana('jefatura'));
   document.getElementById('subTabRRHH').addEventListener('click', () => cambiarSubPestana('rrhh'));
   document.getElementById('subTabHistorialGlobal').addEventListener('click', () => cambiarSubPestana('historial'));
-  document.getElementById('subTabNotasSector').addEventListener('click', () => cambiarSubPestana('notasSector'));
-
   document.querySelectorAll('[data-toggle-pass]').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-toggle-pass');
