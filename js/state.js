@@ -11,6 +11,7 @@ export const state = {
   empleadosRRHHGlobal: [],
   bandejaRRHHGlobal: [],
   historialSupervisionGlobal: [],
+  archivoNotasSectorGlobal: [],
   empleadosSectorJefeGlobal: [],
   companerosSectorGlobal: []
 };

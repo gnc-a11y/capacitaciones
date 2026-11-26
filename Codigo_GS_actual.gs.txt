@@ -979,6 +979,16 @@ function obtenerPanelPermisos(usuario, credencial) {
     historialSupervision = todasSolicitudes.filter(s => s.unidadNorm === emp.unidadNorm);
   }
 
+  const archivoNotasSector = emp.rolNorm === "jefe"
+    ? todasSolicitudes.filter(s =>
+      s.unidadNorm === emp.unidadNorm &&
+      (s.estado === "Finalizado_RRHH" ||
+       s.estado === "Finalizado_GNC" ||
+       s.estado === "Aprobado_GNC_Pendiente_Nota") &&
+      !!String(s.urlNotaPDF || "").trim()
+    )
+    : [];
+
   let empleadosSectorJefe = [];
   if (emp.rolNorm === "jefe") {
     empleadosSectorJefe = todosEmpleados
@@ -1008,6 +1018,7 @@ function obtenerPanelPermisos(usuario, credencial) {
     empleadosRRHHAdmin: empleadosRRHHAdmin,
     operariosDelegacion: operariosDelegacion,
     historialSupervision: historialSupervision,
+    archivoNotasSector: archivoNotasSector,
     empleadosSectorJefe: empleadosSectorJefe
   };
 }
@@ -1461,7 +1472,8 @@ function resolverSolicitudPermiso(p) {
     bandejaAprobacion: panel.bandejaAprobacion,
     bandejaRRHH: panel.bandejaRRHH,
     empleadosRRHHAdmin: panel.empleadosRRHHAdmin,
-    historialSupervision: panel.historialSupervision
+    historialSupervision: panel.historialSupervision,
+    archivoNotasSector: panel.archivoNotasSector
   };
 }
 
