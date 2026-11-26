@@ -46,11 +46,11 @@ export function cambiarPestana(pestana) {
 }
 
 export function cambiarSubPestana(tab) {
-  ['subTabPersonal', 'subTabJefatura', 'subTabRRHH', 'subTabHistorialGlobal'].forEach(id => {
+  ['subTabPersonal', 'subTabJefatura', 'subTabRRHH', 'subTabHistorialGlobal', 'subTabNotasSector'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-  ['vistaSubPersonal', 'vistaSubJefatura', 'vistaSubRRHH', 'vistaSubHistorial'].forEach(id => {
+  ['vistaSubPersonal', 'vistaSubJefatura', 'vistaSubRRHH', 'vistaSubHistorial', 'vistaSubNotasSector'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('d-none');
   });
@@ -67,6 +67,9 @@ export function cambiarSubPestana(tab) {
   } else if (tab === 'historial') {
     document.getElementById('subTabHistorialGlobal').classList.add('active');
     document.getElementById('vistaSubHistorial').classList.remove('d-none');
+  } else if (tab === 'notasSector') {
+    document.getElementById('subTabNotasSector').classList.add('active');
+    document.getElementById('vistaSubNotasSector').classList.remove('d-none');
   }
 }
 
@@ -79,6 +82,7 @@ export function initUIEvents() {
   document.getElementById('subTabJefatura').addEventListener('click', () => cambiarSubPestana('jefatura'));
   document.getElementById('subTabRRHH').addEventListener('click', () => cambiarSubPestana('rrhh'));
   document.getElementById('subTabHistorialGlobal').addEventListener('click', () => cambiarSubPestana('historial'));
+  document.getElementById('subTabNotasSector').addEventListener('click', () => cambiarSubPestana('notasSector'));
 
   document.querySelectorAll('[data-toggle-pass]').forEach(btn => {
     btn.addEventListener('click', () => {
