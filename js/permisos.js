@@ -480,6 +480,7 @@ function renderMisSolicitudes(lista) {
     if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">✓ Documentado por RRHH</span>';
     if (s.estado === 'Pendiente_Companero') badge = '<span class="badge bg-info text-dark">Esperando firma del compañero</span>';
     if (s.estado === 'Pendiente_Jefe' && s.esCambioTurno) badge = '<span class="badge bg-warning text-dark">Esperando aprobación del jefe GNC</span>';
+    if (s.estado === 'Aprobado_GNC_Pendiente_Nota') badge = '<span class="badge bg-warning text-dark">Aprobado por jefatura; nota pendiente</span>';
     if (s.estado === 'Finalizado_GNC') badge = '<span class="badge bg-success">✓ Aprobado y finalizado por Jefatura GNC</span>';
     if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">✕ Denegado (Elegir otra fecha)</span>';
     if (s.estado === 'Anulado') badge = '<span class="badge bg-secondary">🚫 Anulado</span>';
@@ -573,6 +574,21 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
                 <button type="button" class="btn btn-success btn-sm fw-bold flex-fill btn-resolver-companero" data-id="${escapeHtml(s.idTramite)}" data-dec="APROBAR">✓ Aceptar y enviar al jefe</button>
                 <button type="button" class="btn btn-danger btn-sm fw-bold flex-fill btn-resolver-companero" data-id="${escapeHtml(s.idTramite)}" data-dec="RECHAZAR">✕ Rechazar</button>
               </div>
+            </div>`;
+          return;
+        }
+        if (s.esReintentoNotaGNC) {
+          html += `
+            <div class="tramite-item bg-warning-subtle border-warning">
+              <div class="d-flex justify-content-between flex-wrap mb-1">
+                <span class="fw-bold text-dark">✓ Aprobado por jefatura: falta generar la nota</span>
+                <span class="badge bg-secondary">${escapeHtml(s.idTramite)}</span>
+              </div>
+              <div class="small mb-2">
+                <strong>Empleado:</strong> ${escapeHtml(s.nombre)} (Leg. ${escapeHtml(s.legajo)})<br>
+                ${renderDetalleCambioTurno(s)}
+              </div>
+              <button class="btn btn-primary btn-sm fw-bold w-100 btn-resolver" data-id="${escapeHtml(s.idTramite)}" data-dec="REGENERAR_NOTA_GNC">📄 Reintentar generar nota PDF</button>
             </div>`;
           return;
         }
@@ -747,6 +763,7 @@ function renderHistorialSupervision(lista) {
     let badge = '<span class="badge bg-warning text-dark">Pendiente</span>';
     if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">Aprobado</span>';
     if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">Finalizado RRHH</span>';
+    if (s.estado === 'Aprobado_GNC_Pendiente_Nota') badge = '<span class="badge bg-warning text-dark">Aprobado; nota pendiente</span>';
     if (s.estado === 'Finalizado_GNC') badge = '<span class="badge bg-success">Finalizado por Jefatura GNC</span>';
     if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">Denegado</span>';
     if (s.estado === 'Anulado') badge = '<span class="badge bg-secondary">🚫 Anulado</span>';
@@ -792,7 +809,9 @@ function resolverTramite(idTramite, decision, firmaUsuario = '', firmaClave = ''
     ? `¿Confirmás aprobar el trámite ${idTramite}?`
     : (decision === 'RECHAZAR'
       ? `¿Confirmás DENEGAR el trámite ${idTramite}?`
-      : `¿Confirmás finalizar el trámite ${idTramite} y generar automáticamente la Nota PDF para firma manuscrita?`);
+      : (decision === 'REGENERAR_NOTA_GNC'
+        ? `La aprobación ya está registrada. ¿Reintentar generar la nota PDF de ${idTramite}?`
+        : `¿Confirmás finalizar el trámite ${idTramite} y generar automáticamente la Nota PDF para firma manuscrita?`));
 
   if (!confirm(msgConfirm)) return;
 
