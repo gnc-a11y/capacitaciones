@@ -23,6 +23,25 @@ function esTipoCancelacion(confPermiso) {
     .includes("cancelacion");
 }
 
+function esPermisoCambioTurno(nombre) {
+  return (nombre || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .includes("cambio de turno");
+}
+
+function esEmpleadoGNC(data) {
+  return (data.unidad || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim() === "gnc" &&
+    (data.rol || "").toLowerCase() === "empleado" &&
+    data.accesoRRHH !== true &&
+    data.esDelegadoJefe !== true;
+}
+
 function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
   const [y1, m1, d1] = fechaInicioStr.split('-').map(Number);
   const [y2, m2, d2] = fechaFinStr.split('-').map(Number);
@@ -85,13 +104,27 @@ function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
 }
 
 export function inicializarModuloPermisos(data, esActualizacionSilenciosa = false) {
-  state.configPermisosGlobal = data.permisosConfig || [];
+  state.configPermisosGlobal = (data.permisosConfig || []).filter(p =>
+    !esPermisoCambioTurno(p.nombre) || esEmpleadoGNC(state.usuarioActual)
+  );
   state.feriadosGlobal = data.feriados || [];
   state.misSolicitudesGlobal = data.misSolicitudes || [];
   state.empleadosRRHHGlobal = data.empleadosRRHHAdmin || [];
   state.bandejaRRHHGlobal = data.bandejaRRHH || [];
   state.historialSupervisionGlobal = data.historialSupervision || [];
   state.empleadosSectorJefeGlobal = data.empleadosSectorJefe || [];
+  state.companerosSectorGlobal = data.companerosSector || [];
+
+  if (esEmpleadoGNC(state.usuarioActual) &&
+      !state.configPermisosGlobal.some(p => esPermisoCambioTurno(p.nombre))) {
+    state.configPermisosGlobal.push({
+      nombre: "Cambio de turno/franco",
+      esVacaciones: false,
+      tipoDias: "CORRIDOS",
+      diasMax: 0,
+      requiereComprobante: "NO"
+    });
+  }
 
   document.getElementById('badgeConvenioUsuario').innerText = data.convenio || "CCT";
   document.getElementById('badgeModalidadDias').innerText =
@@ -106,6 +139,17 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
       opt.innerText = p.nombre;
       select.appendChild(opt);
     });
+    document.getElementById('panelCambioTurno').classList.add('d-none');
+    const selCompanero = document.getElementById('turnoCompanero');
+    selCompanero.innerHTML = '<option value="">Seleccioná un compañero/a...</option>';
+    if (esEmpleadoGNC(state.usuarioActual)) {
+      state.companerosSectorGlobal.forEach(companero => {
+        const opt = document.createElement('option');
+        opt.value = companero.usuario;
+        opt.innerText = `${companero.nombre} (Leg. ${companero.legajo})`;
+        selCompanero.appendChild(opt);
+      });
+    }
   }
 
   // Si tiene abierto el panel de saldo de vacaciones, mantener el número actualizado tras sincronización
@@ -124,6 +168,7 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   const esJefe = rolNorm === 'jefe';
   const esDelegadoJefe = data.esDelegadoJefe === true;
   const esGerente = rolNorm === 'gerente';
+  const tieneConfirmacionesTurno = (data.bandejaAprobacion || []).some(s => s.esConfirmacionOperario2);
 
   // Visibilidad de Sub-pestañas según el Rol
   const itemPers = document.getElementById('itemSubTabPersonal');
@@ -154,8 +199,13 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
     document.getElementById('subtituloBandejaAprobacion').innerText = 'El sistema detecta automáticamente superposiciones dentro del sector.';
   }
 
-  if (esJefe || esDelegadoJefe || esJefaRRHH) {
+  if (esJefe || esDelegadoJefe || esJefaRRHH || tieneConfirmacionesTurno) {
     itemJef.classList.remove('d-none');
+  }
+  if (tieneConfirmacionesTurno && !esJefe && !esDelegadoJefe && !esJefaRRHH && !esGerente) {
+    document.getElementById('labelSubTabJefatura').innerText = '🔄 Confirmar cambio de turno';
+    document.getElementById('tituloBandejaAprobacion').innerText = '🔄 Solicitudes de cambio de turno para tu firma';
+    document.getElementById('subtituloBandejaAprobacion').innerText = 'Ingresá tu usuario y clave para aceptar o rechazar la solicitud.';
   }
 
   if (esJefe) {
@@ -189,7 +239,7 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   if (!esActualizacionSilenciosa) {
     if (tieneModuloRRHH) {
       cambiarSubPestana('rrhh');
-    } else if (esGerente || esJefe || esDelegadoJefe) {
+    } else if (esGerente || esJefe || esDelegadoJefe || tieneConfirmacionesTurno) {
       cambiarSubPestana('jefatura');
     } else {
       cambiarSubPestana('personal');
@@ -231,12 +281,24 @@ function actualizarInfoPermiso() {
   const infoDiv = document.getElementById('infoReglaPermiso');
   const panelVac = document.getElementById('panelSaldoVacaciones');
   const panelCan = document.getElementById('panelCancelacionPedido');
+  const panelCambioTurno = document.getElementById('panelCambioTurno');
+  const bloqueFechas = document.getElementById('bloqueFechasPermiso');
+  const bloqueCantidadDias = document.getElementById('bloqueCantidadDias');
   const inputDesde = document.getElementById('permisoDesde');
   const inputHasta = document.getElementById('permisoHasta');
+  const inputDias = document.getElementById('permisoDias');
   const found = state.configPermisosGlobal.find(p => p.nombre === sel);
 
   panelVac.classList.add('d-none');
   if (panelCan) panelCan.classList.add('d-none');
+  panelCambioTurno.classList.add('d-none');
+  bloqueFechas.classList.remove('d-none');
+  bloqueCantidadDias.classList.remove('d-none');
+  inputDesde.required = true;
+  inputHasta.required = true;
+  inputDias.required = true;
+  ['turnoCompanero', 'turnoFechaOriginal', 'turnoDesdeOriginal', 'turnoHastaOriginal', 'turnoFechaCambio', 'turnoDesdeCambio', 'turnoHastaCambio']
+    .forEach(id => { document.getElementById(id).required = false; });
   document.getElementById('errorSaldoExcedido').classList.add('d-none');
   inputDesde.readOnly = false;
   inputHasta.readOnly = false;
@@ -244,6 +306,20 @@ function actualizarInfoPermiso() {
   if (!found) {
     infoDiv.innerText = '';
     calcularDiasPermiso();
+    return;
+  }
+
+  if (esPermisoCambioTurno(found.nombre)) {
+    panelCambioTurno.classList.remove('d-none');
+    bloqueFechas.classList.add('d-none');
+    bloqueCantidadDias.classList.add('d-none');
+    inputDesde.required = false;
+    inputHasta.required = false;
+    inputDias.required = false;
+    ['turnoCompanero', 'turnoFechaOriginal', 'turnoDesdeOriginal', 'turnoHastaOriginal', 'turnoFechaCambio', 'turnoDesdeCambio', 'turnoHastaCambio']
+      .forEach(id => { document.getElementById(id).required = true; });
+    document.getElementById('permisoDias').value = '1';
+    infoDiv.innerText = 'La solicitud se limita a empleados de GNC. Primero debe aceptar tu compañero y luego aprobar el jefe directo.';
     return;
   }
 
@@ -354,7 +430,7 @@ function abrirModalSubirComprobante(idTramite) {
 function renderBloqueComprobanteHtml(s, esElSolicitante, esRRHH) {
   const comprobanteUrl = safeExternalUrl(s.urlComprobante);
   const notaPdfUrl = safeExternalUrl(s.urlNotaPDF);
-  const mostrarAlgo = s.requiereComprobante || comprobanteUrl || (esRRHH && notaPdfUrl);
+  const mostrarAlgo = s.requiereComprobante || comprobanteUrl || notaPdfUrl;
   if (!mostrarAlgo) return '';
 
   let html = '<div class="mt-2 d-flex flex-wrap align-items-center gap-2">';
@@ -365,7 +441,7 @@ function renderBloqueComprobanteHtml(s, esElSolicitante, esRRHH) {
     html += `<span class="badge bg-warning text-dark">⚠️ Pendiente de comprobante</span>`;
   }
 
-  if (esRRHH && notaPdfUrl) {
+  if (notaPdfUrl) {
     html += `<a href="${escapeHtml(notaPdfUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success btn-sm fw-bold">🖨️ Ver / Imprimir Nota PDF (Firma)</a>`;
   }
 
@@ -376,6 +452,18 @@ function renderBloqueComprobanteHtml(s, esElSolicitante, esRRHH) {
 
   html += '</div>';
   return html;
+}
+
+function renderDetalleCambioTurno(s) {
+  const cambio = s.cambioTurnoInfo;
+  if (!s.esCambioTurno || !cambio) return '';
+  return `
+    <div class="small text-secondary mt-1">
+      <strong>Compañero/a:</strong> ${escapeHtml(cambio.reempNombre)} (Leg. ${escapeHtml(cambio.reempLegajo)})<br>
+      <strong>Turno original:</strong> ${escapeHtml(s.fechaDesde)} ${escapeHtml(cambio.horarioOriginal || cambio.horario)}<br>
+      <strong>Turno/franco a intercambiar:</strong> ${escapeHtml(s.fechaHasta)} ${escapeHtml(cambio.horarioCambio || '')}
+      ${cambio.detalleLimpio ? `<br><strong>Observaciones:</strong> ${escapeHtml(cambio.detalleLimpio)}` : ''}
+    </div>`;
 }
 
 function renderMisSolicitudes(lista) {
@@ -390,6 +478,9 @@ function renderMisSolicitudes(lista) {
     let badge = '<span class="badge bg-warning text-dark">Pendiente de Aprobación</span>';
     if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">✓ Aprobado (En RRHH)</span>';
     if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">✓ Documentado por RRHH</span>';
+    if (s.estado === 'Pendiente_Companero') badge = '<span class="badge bg-info text-dark">Esperando firma del compañero</span>';
+    if (s.estado === 'Pendiente_Jefe' && s.esCambioTurno) badge = '<span class="badge bg-warning text-dark">Esperando aprobación del jefe GNC</span>';
+    if (s.estado === 'Finalizado_GNC') badge = '<span class="badge bg-success">✓ Aprobado y finalizado por Jefatura GNC</span>';
     if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">✕ Denegado (Elegir otra fecha)</span>';
     if (s.estado === 'Anulado') badge = '<span class="badge bg-secondary">🚫 Anulado</span>';
 
@@ -400,10 +491,12 @@ function renderMisSolicitudes(lista) {
           ${badge}
         </div>
         <div class="small text-muted">
-          Trámite: <strong>${escapeHtml(s.idTramite)}</strong> | Del <strong>${escapeHtml(s.fechaDesde)}</strong> al <strong>${escapeHtml(s.fechaHasta)}</strong>
-          (<strong>${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')}</strong>)
+          Trámite: <strong>${escapeHtml(s.idTramite)}</strong>
+          ${s.esCambioTurno
+            ? ''
+            : ` | Del <strong>${escapeHtml(s.fechaDesde)}</strong> al <strong>${escapeHtml(s.fechaHasta)}</strong> (<strong>${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')}</strong>)`}
         </div>
-        ${s.motivo ? `<div class="small text-secondary mt-1">${escapeHtml(s.motivo)}</div>` : ''}
+        ${s.esCambioTurno ? renderDetalleCambioTurno(s) : (s.motivo ? `<div class="small text-secondary mt-1">${escapeHtml(s.motivo)}</div>` : '')}
         ${s.obsResolucion ? `<div class="small text-dark mt-2 bg-light p-2 rounded border">Respuesta (${escapeHtml(s.resueltoPor)}): ${escapeHtml(s.obsResolucion)}</div>` : ''}
         ${renderBloqueComprobanteHtml(s, true, false)}
       </div>`;
@@ -424,11 +517,13 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
   const pillJef = document.getElementById('pillPendientesBandeja');
   const badgeSubRRHH = document.getElementById('badgeSubTabRRHH');
 
+  const esJefatura = rolNorm === 'jefe' || rolNorm === 'gerente' || rolNorm === 'jefa_rrhh' || esDelegadoJefe;
+  const tieneConfirmacionesTurno = bandejaJefe.some(s => s.esConfirmacionOperario2);
   let pendientesJef = bandejaJefe.length;
   let pendientesRRHH = tieneModuloRRHH ? bandejaRRHH.filter(x => x.estado === 'Aprobado_RRHH').length : 0;
   let totalPendientes = 0;
 
-  if (rolNorm === 'jefe' || rolNorm === 'gerente' || rolNorm === 'jefa_rrhh' || esDelegadoJefe) {
+  if (esJefatura || tieneConfirmacionesTurno) {
     totalPendientes += pendientesJef;
     pillJef.innerText = `${pendientesJef} pendiente(s)`;
     if (pendientesJef > 0) {
@@ -449,6 +544,31 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
     } else {
       let html = '';
       bandejaJefe.forEach(s => {
+        if (s.esConfirmacionOperario2) {
+          html += `
+            <div class="tramite-item bg-info-subtle border-info" data-turno-id="${escapeHtml(s.idTramite)}">
+              <div class="d-flex justify-content-between flex-wrap mb-1">
+                <span class="fw-bold text-dark">🔄 Cambio de turno/franco solicitado por ${escapeHtml(s.nombre)}</span>
+                <span class="badge bg-secondary">${escapeHtml(s.idTramite)}</span>
+              </div>
+              <div class="small mb-2"><strong>Sector:</strong> ${escapeHtml(s.unidad)} | <strong>Legajo:</strong> ${escapeHtml(s.legajo)}</div>
+              ${renderDetalleCambioTurno(s)}
+              <input type="text" id="obs_${escapeHtml(s.idTramite)}" class="form-control form-control-sm mb-2" placeholder="Observación (opcional)">
+              <div class="row g-2 mb-2">
+                <div class="col-sm-6">
+                  <input type="text" id="firmaUsr_${escapeHtml(s.idTramite)}" class="form-control form-control-sm" placeholder="Tu usuario para firmar" autocomplete="username" required>
+                </div>
+                <div class="col-sm-6">
+                  <input type="password" id="firmaClave_${escapeHtml(s.idTramite)}" class="form-control form-control-sm" placeholder="Tu clave para firmar" autocomplete="current-password" required>
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-success btn-sm fw-bold flex-fill btn-resolver-companero" data-id="${escapeHtml(s.idTramite)}" data-dec="APROBAR">✓ Aceptar y enviar al jefe</button>
+                <button type="button" class="btn btn-danger btn-sm fw-bold flex-fill btn-resolver-companero" data-id="${escapeHtml(s.idTramite)}" data-dec="RECHAZAR">✕ Rechazar</button>
+              </div>
+            </div>`;
+          return;
+        }
         let alertaConflictoHtml = '';
         if (s.conflictos && s.conflictos.length > 0) {
           const detalle = s.conflictos.map(c =>
@@ -469,15 +589,16 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
             </div>
             <div class="small mb-2">
               <strong>Motivo:</strong> ${escapeHtml(s.tipoPermiso)}<br>
-              <strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} (<strong>${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')}</strong>)<br>
-              ${s.motivo ? `<strong>Detalle empleado:</strong> ${escapeHtml(s.motivo)}` : ''}
+              ${s.esCambioTurno
+                ? renderDetalleCambioTurno(s)
+                : `<strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} (<strong>${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')}</strong>)<br>${s.motivo ? `<strong>Detalle empleado:</strong> ${escapeHtml(s.motivo)}` : ''}`}
             </div>
             ${renderBloqueComprobanteHtml(s, false, false)}
             ${alertaConflictoHtml}
             <div class="mt-2">
               <input type="text" id="obs_${escapeHtml(s.idTramite)}" class="form-control form-control-sm mb-2" placeholder="Observación (ej: Motivo si denegás por cobertura)...">
               <div class="d-flex gap-2">
-                <button class="btn btn-success btn-sm fw-bold flex-fill btn-resolver" data-id="${escapeHtml(s.idTramite)}" data-dec="APROBAR">✓ Aprobar y Enviar a RRHH</button>
+                <button class="btn btn-success btn-sm fw-bold flex-fill btn-resolver" data-id="${escapeHtml(s.idTramite)}" data-dec="APROBAR">${s.esCambioTurno ? '✓ Aprobar y cerrar trámite' : '✓ Aprobar y Enviar a RRHH'}</button>
                 <button class="btn btn-danger btn-sm fw-bold flex-fill btn-resolver" data-id="${escapeHtml(s.idTramite)}" data-dec="RECHAZAR">✕ Denegar / Pedir otra fecha</button>
               </div>
             </div>
@@ -493,6 +614,25 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
       cont.querySelectorAll('.btn-resolver').forEach(btn => {
         btn.addEventListener('click', () => resolverTramite(btn.dataset.id, btn.dataset.dec));
       });
+      cont.querySelectorAll('.btn-resolver-companero').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const usuario = document.getElementById(`firmaUsr_${id}`).value.trim();
+          const clave = document.getElementById(`firmaClave_${id}`).value;
+          if (!usuario || !clave) {
+            alert('Ingresá tu usuario y clave para firmar esta respuesta.');
+            return;
+          }
+          resolverTramite(id, btn.dataset.dec, usuario, clave);
+        });
+      });
+    }
+  } else {
+    document.getElementById('listaBandejaJefe').innerHTML = '<p class="text-muted small mb-0">No tenés solicitudes pendientes de firma.</p>';
+    badgeSubJef.classList.add('d-none');
+    document.getElementById('itemSubTabJefatura').classList.add('d-none');
+    if (document.getElementById('subTabJefatura').classList.contains('active')) {
+      cambiarSubPestana('personal');
     }
   }
 
@@ -542,8 +682,10 @@ function renderListaBandejaRRHH(lista) {
           </div>
         </div>
         <div class="small">
-          <strong>Permiso:</strong> ${escapeHtml(s.tipoPermiso)} | <strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} (${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')})<br>
-          ${s.motivo ? `<strong>Detalle:</strong> ${escapeHtml(s.motivo)}<br>` : ''}
+          <strong>Permiso:</strong> ${escapeHtml(s.tipoPermiso)}${s.esCambioTurno
+            ? ''
+            : ` | <strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} (${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')})`}<br>
+          ${s.esCambioTurno ? renderDetalleCambioTurno(s) : (s.motivo ? `<strong>Detalle:</strong> ${escapeHtml(s.motivo)}<br>` : '')}
           <strong>Estado gestión:</strong> ${escapeHtml(s.resueltoPor)} (${escapeHtml(s.fechaResolucion)})
         </div>
         ${renderBloqueComprobanteHtml(s, false, true)}
@@ -589,6 +731,7 @@ function renderHistorialSupervision(lista) {
     let badge = '<span class="badge bg-warning text-dark">Pendiente</span>';
     if (s.estado === 'Aprobado_RRHH') badge = '<span class="badge bg-success">Aprobado</span>';
     if (s.estado === 'Finalizado_RRHH') badge = '<span class="badge bg-primary">Finalizado RRHH</span>';
+    if (s.estado === 'Finalizado_GNC') badge = '<span class="badge bg-success">Finalizado por Jefatura GNC</span>';
     if (s.estado === 'Rechazado') badge = '<span class="badge bg-danger">Denegado</span>';
     if (s.estado === 'Anulado') badge = '<span class="badge bg-secondary">🚫 Anulado</span>';
 
@@ -599,9 +742,11 @@ function renderHistorialSupervision(lista) {
           ${badge}
         </div>
         <div class="small text-muted">
-          <strong>${escapeHtml(s.idTramite)}</strong> | ${escapeHtml(s.tipoPermiso)} | Del <strong>${escapeHtml(s.fechaDesde)}</strong> al <strong>${escapeHtml(s.fechaHasta)}</strong> (${escapeHtml(s.cantDias)}d)
+          <strong>${escapeHtml(s.idTramite)}</strong> | ${escapeHtml(s.tipoPermiso)}${s.esCambioTurno
+            ? ''
+            : ` | Del <strong>${escapeHtml(s.fechaDesde)}</strong> al <strong>${escapeHtml(s.fechaHasta)}</strong> (${escapeHtml(s.cantDias)}d)`}
         </div>
-        ${s.motivo ? `<div class="small text-secondary mt-1">${escapeHtml(s.motivo)}</div>` : ''}
+        ${s.esCambioTurno ? renderDetalleCambioTurno(s) : (s.motivo ? `<div class="small text-secondary mt-1">${escapeHtml(s.motivo)}</div>` : '')}
         ${renderBloqueComprobanteHtml(s, false, false)}
       </div>`;
   });
@@ -626,9 +771,9 @@ function filtrarHistorialSupervision() {
   renderHistorialSupervision(filtrados);
 }
 
-function resolverTramite(idTramite, decision) {
+function resolverTramite(idTramite, decision, firmaUsuario = '', firmaClave = '') {
   const msgConfirm = decision === 'APROBAR'
-    ? `¿Confirmás APROBAR el trámite ${idTramite} y derivarlo a RRHH?`
+    ? `¿Confirmás aprobar el trámite ${idTramite}?`
     : (decision === 'RECHAZAR'
       ? `¿Confirmás DENEGAR el trámite ${idTramite}?`
       : `¿Confirmás finalizar el trámite ${idTramite} y generar automáticamente la Nota PDF para firma manuscrita?`);
@@ -646,8 +791,8 @@ function resolverTramite(idTramite, decision) {
 
   callGAS({
     action: 'resolverPermiso',
-    usuario: state.usuarioActual.usuario,
-    clave: state.claveSesionTemporal,
+    usuario: firmaUsuario || state.usuarioActual.usuario,
+    clave: firmaClave || state.claveSesionTemporal,
     idTramite: idTramite,
     decision: decision,
     observacion: obs
@@ -659,6 +804,10 @@ function resolverTramite(idTramite, decision) {
 
     if (res && res.success) {
       alert(res.message);
+      if (res.misSolicitudes) {
+        state.misSolicitudesGlobal = res.misSolicitudes;
+        renderMisSolicitudes(state.misSolicitudesGlobal);
+      }
       if (res.urlNotaPDF) {
         const notaPdfUrl = safeExternalUrl(res.urlNotaPDF);
         if (notaPdfUrl) window.open(notaPdfUrl, '_blank', 'noopener,noreferrer');
@@ -778,23 +927,39 @@ export function initPermisosEvents() {
     const conf = state.configPermisosGlobal.find(p => p.nombre === tipoSel);
     const modalidad = obtenerTipoDiasEfectivo(conf);
     const esCancel = esTipoCancelacion(conf);
+    const esCambioTurno = esPermisoCambioTurno(tipoSel);
+    const horarioCambioTurno = esCambioTurno
+      ? `Turno original: ${document.getElementById('turnoDesdeOriginal').value}-${document.getElementById('turnoHastaOriginal').value}; turno/franco a intercambiar: ${document.getElementById('turnoDesdeCambio').value}-${document.getElementById('turnoHastaCambio').value}`
+      : '';
 
     const payload = {
       action: 'crearPermiso',
       usuario: document.getElementById('firmaUsuario').value.trim(),
       clave: document.getElementById('firmaClave').value.trim(),
       tipoPermiso: tipoSel,
+      companeroUsuario: esCambioTurno ? document.getElementById('turnoCompanero').value : '',
+      horarioCambioTurno: horarioCambioTurno,
+      fechaTurnoOriginal: esCambioTurno ? document.getElementById('turnoFechaOriginal').value : '',
+      inicioTurnoOriginal: esCambioTurno ? document.getElementById('turnoDesdeOriginal').value : '',
+      finTurnoOriginal: esCambioTurno ? document.getElementById('turnoHastaOriginal').value : '',
+      fechaTurnoCambio: esCambioTurno ? document.getElementById('turnoFechaCambio').value : '',
+      inicioTurnoCambio: esCambioTurno ? document.getElementById('turnoDesdeCambio').value : '',
+      finTurnoCambio: esCambioTurno ? document.getElementById('turnoHastaCambio').value : '',
       idTramiteCancelar: esCancel ? document.getElementById('permisoTramiteCancelar').value : '',
       tipoDiasAplicado: modalidad,
       esVacaciones: conf ? conf.esVacaciones : false,
-      fechaDesde: document.getElementById('permisoDesde').value,
-      fechaHasta: document.getElementById('permisoHasta').value,
-      cantDias: document.getElementById('permisoDias').value,
+      fechaDesde: esCambioTurno
+        ? document.getElementById('turnoFechaOriginal').value
+        : document.getElementById('permisoDesde').value,
+      fechaHasta: esCambioTurno
+        ? document.getElementById('turnoFechaCambio').value
+        : document.getElementById('permisoHasta').value,
+      cantDias: esCambioTurno ? '1' : document.getElementById('permisoDias').value,
       motivo: document.getElementById('permisoMotivo').value.trim()
     };
 
     btn.disabled = true;
-    btn.innerText = "Firmando y enviando...";
+    btn.innerText = esCambioTurno ? "Firmando y enviando al compañero..." : "Firmando y enviando...";
 
     callGAS(payload, function(res) {
       btn.disabled = false;
@@ -806,6 +971,7 @@ export function initPermisosEvents() {
         msgDiv.className = "alert alert-success mt-3";
         msgDiv.innerText = res.message;
         document.getElementById('formPermiso').reset();
+        actualizarInfoPermiso();
         document.getElementById('permisoDesde').readOnly = false;
         document.getElementById('permisoHasta').readOnly = false;
         document.getElementById('panelSaldoVacaciones').classList.add('d-none');
