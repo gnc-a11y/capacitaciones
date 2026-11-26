@@ -1,4 +1,4 @@
-export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4VjMZ99sJetMcVVYLbLyfg0LyQiVmIUIgcXYFmJq9y6vCOosewZDtPtE3sCJNuc77g/exec";
+export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlT8ckYshK964UggZ9G95dOr7TVfTLGhDZNp20aNJ8FwCgbCT8rJE0bMT84htHAK6WEQ/exec";
 
 export const state = {
   usuarioActual: null,
