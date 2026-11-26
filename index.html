@@ -144,11 +144,6 @@
             🗄️ Historial General y Comprobantes
           </button>
         </li>
-        <li class="nav-item d-none" id="itemSubTabNotasSector">
-          <button class="nav-link" id="subTabNotasSector">
-            🖨️ Notas autorizadas del sector
-          </button>
-        </li>
       </ul>
 
       <!-- SUB-VISTA 1: MI SOLICITUD Y ESTADO -->
@@ -422,22 +417,6 @@
               <input type="text" id="filtroHistorialInput" class="form-control form-control-sm w-auto" placeholder="🔍 Buscar empleado, unidad o N°...">
             </div>
             <div class="card-body p-4" id="listaHistorialSupervision"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- SUB-VISTA 5: NOTAS LISTAS PARA FIRMA (Solo jefes; filtrada por sector en backend) -->
-      <div id="vistaSubNotasSector" class="row g-4 d-none">
-        <div class="col-12">
-          <div class="card card-custom border-success">
-            <div class="card-header-clean d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <div>
-                <h5 class="fw-bold text-success m-0">🗂️ Permisos autorizados y notas del sector</h5>
-                <small class="text-muted">Descargá e imprimí las notas PDF disponibles para firma del personal de tu sector</small>
-              </div>
-              <input type="text" id="filtroNotasSectorInput" class="form-control form-control-sm w-auto" placeholder="🔍 Buscar empleado o N° de trámite...">
-            </div>
-            <div class="card-body p-4" id="listaNotasSector" style="max-height: 560px; overflow-y: auto;"></div>
           </div>
         </div>
       </div>

@@ -112,7 +112,6 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   state.empleadosRRHHGlobal = data.empleadosRRHHAdmin || [];
   state.bandejaRRHHGlobal = data.bandejaRRHH || [];
   state.historialSupervisionGlobal = data.historialSupervision || [];
-  state.archivoNotasSectorGlobal = data.archivoNotasSector || [];
   state.empleadosSectorJefeGlobal = data.empleadosSectorJefe || [];
   state.companerosSectorGlobal = data.companerosSector || [];
 
@@ -176,7 +175,6 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   const itemJef = document.getElementById('itemSubTabJefatura');
   const itemRRHH = document.getElementById('itemSubTabRRHH');
   const itemHist = document.getElementById('itemSubTabHistorialGlobal');
-  const itemNotasSector = document.getElementById('itemSubTabNotasSector');
   const colBandeja = document.getElementById('colBandejaAprobacion');
   const colDeleg = document.getElementById('colPanelDelegacionJefe');
 
@@ -184,7 +182,6 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
   itemJef.classList.add('d-none');
   itemRRHH.classList.add('d-none');
   itemHist.classList.add('d-none');
-  itemNotasSector.classList.add('d-none');
   colDeleg.classList.add('d-none');
   colBandeja.className = 'col-12 col-lg-7';
 
@@ -213,9 +210,7 @@ export function inicializarModuloPermisos(data, esActualizacionSilenciosa = fals
 
   if (esJefe) {
     colDeleg.classList.remove('d-none');
-    itemNotasSector.classList.remove('d-none');
     renderPanelDelegacionJefe(state.empleadosSectorJefeGlobal);
-    filtrarNotasSector();
   } else if (!esGerente) {
     colBandeja.className = 'col-12 col-lg-9 mx-auto';
   }
@@ -809,61 +804,6 @@ function filtrarHistorialSupervision() {
   renderHistorialSupervision(filtrados);
 }
 
-function renderArchivoNotasSector(lista) {
-  const cont = document.getElementById('listaNotasSector');
-  const notasValidas = lista.filter(s => safeExternalUrl(s.urlNotaPDF));
-  if (!notasValidas.length) {
-    cont.innerHTML = '<p class="text-muted small mb-0">Todavía no hay notas PDF disponibles para firma en tu sector.</p>';
-    return;
-  }
-
-  let html = '';
-  notasValidas.forEach(s => {
-    const notaPdfUrl = safeExternalUrl(s.urlNotaPDF);
-    const estado = s.estado === 'Finalizado_GNC'
-      ? 'Finalizado por Jefatura GNC'
-      : (s.estado === 'Aprobado_GNC_Pendiente_Nota' ? 'Aprobado por jefatura' : 'Finalizado por RRHH');
-    html += `
-      <div class="tramite-item">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
-          <strong>${escapeHtml(s.nombre)} <span class="text-muted fw-normal small">(Leg. ${escapeHtml(s.legajo)} - ${escapeHtml(s.unidad)})</span></strong>
-          <div>
-            <span class="badge bg-secondary">${escapeHtml(s.idTramite)}</span>
-            <span class="badge bg-success">${escapeHtml(estado)}</span>
-          </div>
-        </div>
-        <div class="small">
-          <strong>Permiso:</strong> ${escapeHtml(s.tipoPermiso)}${s.esCambioTurno
-            ? ''
-            : ` | <strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)}`}<br>
-          ${s.esCambioTurno
-            ? renderDetalleCambioTurno(s)
-            : (s.motivo ? `<strong>Detalle:</strong> ${escapeHtml(s.motivo)}<br>` : '')}
-          <strong>Autorizado por:</strong> ${escapeHtml(s.resueltoPor)} (${escapeHtml(s.fechaResolucion)})
-        </div>
-        <div class="mt-2">
-          <a href="${escapeHtml(notaPdfUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success btn-sm fw-bold">🖨️ Ver / Imprimir Nota PDF (Firma)</a>
-        </div>
-      </div>`;
-  });
-  cont.innerHTML = html;
-}
-
-function filtrarNotasSector() {
-  const input = document.getElementById('filtroNotasSectorInput');
-  const q = input ? input.value.trim().toLowerCase() : '';
-  const lista = state.archivoNotasSectorGlobal || [];
-  if (!q) {
-    renderArchivoNotasSector(lista);
-    return;
-  }
-  const filtrados = lista.filter(s =>
-    [s.nombre, s.unidad, s.idTramite, s.tipoPermiso, s.legajo]
-      .some(valor => String(valor || '').toLowerCase().includes(q))
-  );
-  renderArchivoNotasSector(filtrados);
-}
-
 function resolverTramite(idTramite, decision, firmaUsuario = '', firmaClave = '') {
   const msgConfirm = decision === 'APROBAR'
     ? `¿Confirmás aprobar el trámite ${idTramite}?`
@@ -922,10 +862,6 @@ function resolverTramite(idTramite, decision, firmaUsuario = '', firmaClave = ''
       if (res.historialSupervision) {
         state.historialSupervisionGlobal = res.historialSupervision;
         filtrarHistorialSupervision();
-      }
-      if (res.archivoNotasSector) {
-        state.archivoNotasSectorGlobal = res.archivoNotasSector;
-        filtrarNotasSector();
       }
       renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, res.bandejaAprobacion || [], state.bandejaRRHHGlobal);
     } else {
@@ -1012,7 +948,6 @@ export function initPermisosEvents() {
   document.getElementById('permisoHasta').addEventListener('change', calcularDiasPermiso);
   document.getElementById('filtroBandejaRRHHInput').addEventListener('keyup', filtrarBandejaRRHH);
   document.getElementById('filtroHistorialInput').addEventListener('keyup', filtrarHistorialSupervision);
-  document.getElementById('filtroNotasSectorInput').addEventListener('keyup', filtrarNotasSector);
   document.getElementById('buscadorEmpleadoDelegar').addEventListener('keyup', filtrarSelectDelegadosJefe);
 
   document.getElementById('btnAgregarDelegadoJefe').addEventListener('click', () => {

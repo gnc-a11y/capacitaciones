@@ -69,11 +69,11 @@ export function cambiarPestana(pestana) {
 }
 
 export function cambiarSubPestana(tab) {
-  ['subTabPersonal', 'subTabJefatura', 'subTabRRHH', 'subTabHistorialGlobal', 'subTabNotasSector'].forEach(id => {
+  ['subTabPersonal', 'subTabJefatura', 'subTabRRHH', 'subTabHistorialGlobal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-  ['vistaSubPersonal', 'vistaSubJefatura', 'vistaSubRRHH', 'vistaSubHistorial', 'vistaSubNotasSector'].forEach(id => {
+  ['vistaSubPersonal', 'vistaSubJefatura', 'vistaSubRRHH', 'vistaSubHistorial'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('d-none');
   });
@@ -90,9 +90,6 @@ export function cambiarSubPestana(tab) {
   } else if (tab === 'historial') {
     document.getElementById('subTabHistorialGlobal').classList.add('active');
     document.getElementById('vistaSubHistorial').classList.remove('d-none');
-  } else if (tab === 'notasSector') {
-    document.getElementById('subTabNotasSector').classList.add('active');
-    document.getElementById('vistaSubNotasSector').classList.remove('d-none');
   }
 }
 
