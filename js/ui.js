@@ -1,8 +1,29 @@
+export function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function safeExternalUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(String(value), window.location.href);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    return url.href;
+  } catch (err) {
+    return null;
+  }
+}
+
 export async function limpiarCacheNavegador(borrarSesion = false) {
   try {
-    localStorage.clear();
     if (borrarSesion) {
-      sessionStorage.clear();
+      ['ceez_sesion_usuario', 'ceez_sesion_token', 'ceez_sesion_clave'].forEach(key => {
+        sessionStorage.removeItem(key);
+      });
     }
   } catch (err) {}
 }

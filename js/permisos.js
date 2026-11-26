@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { callGAS } from './api.js';
 import { cambiarSubPestana } from './ui.js';
+import { escapeHtml, safeExternalUrl } from './ui.js';
 import {
   renderPanelDelegacionRRHH,
   poblarSelectorVacacionesRRHH,
@@ -50,7 +51,7 @@ function calcularDiasEntreFechas(fechaInicioStr, fechaFinStr, modalidad) {
       finesDeSemana++;
     } else if (setFeriados.has(iso)) {
       const ferObj = state.feriadosGlobal.find(f => f.fecha === iso);
-      feriadosEncontrados.push(`${dd}/${mm} (${ferObj ? ferObj.desc : 'Feriado'})`);
+      feriadosEncontrados.push(`${dd}/${mm} (${escapeHtml(ferObj ? ferObj.desc : 'Feriado')})`);
     } else {
       totalHabiles++;
     }
@@ -218,11 +219,11 @@ function alSeleccionarTramiteCancelar() {
   btnEnviar.disabled = false;
 
   document.getElementById('desgloseCalculoDias').innerHTML =
-    `Corresponde al trámite original <strong>${tramite.idTramite}</strong> (${tramite.cantDias} día/s).`;
+    `Corresponde al trámite original <strong>${escapeHtml(tramite.idTramite)}</strong> (${escapeHtml(tramite.cantDias)} día/s).`;
 
   infoCancel.innerHTML = tramite.esVacaciones
-    ? `🏖️ Este pedido descontó <strong>${tramite.cantDias} día(s) de vacaciones</strong>. Al aprobarse la cancelación, volverán a tu saldo.`
-    : `📄 Licencia original: <strong>${tramite.tipoPermiso}</strong>.`;
+    ? `🏖️ Este pedido descontó <strong>${escapeHtml(tramite.cantDias)} día(s) de vacaciones</strong>. Al aprobarse la cancelación, volverán a tu saldo.`
+    : `📄 Licencia original: <strong>${escapeHtml(tramite.tipoPermiso)}</strong>.`;
 }
 
 function actualizarInfoPermiso() {
@@ -268,7 +269,7 @@ function actualizarInfoPermiso() {
     }
 
     selTramite.innerHTML = aprobados.map(s =>
-      `<option value="${s.idTramite}">${s.idTramite} — ${s.tipoPermiso} (${s.fechaDesde} al ${s.fechaHasta} - ${s.cantDias}d)</option>`
+      `<option value="${escapeHtml(s.idTramite)}">${escapeHtml(s.idTramite)} — ${escapeHtml(s.tipoPermiso)} (${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} - ${escapeHtml(s.cantDias)}d)</option>`
     ).join('');
 
     selTramite.onchange = alSeleccionarTramiteCancelar;
@@ -351,24 +352,26 @@ function abrirModalSubirComprobante(idTramite) {
 }
 
 function renderBloqueComprobanteHtml(s, esElSolicitante, esRRHH) {
-  const mostrarAlgo = s.requiereComprobante || s.urlComprobante || (esRRHH && s.urlNotaPDF);
+  const comprobanteUrl = safeExternalUrl(s.urlComprobante);
+  const notaPdfUrl = safeExternalUrl(s.urlNotaPDF);
+  const mostrarAlgo = s.requiereComprobante || comprobanteUrl || (esRRHH && notaPdfUrl);
   if (!mostrarAlgo) return '';
 
   let html = '<div class="mt-2 d-flex flex-wrap align-items-center gap-2">';
 
-  if (s.urlComprobante) {
-    html += `<a href="${s.urlComprobante}" target="_blank" class="btn btn-outline-primary btn-sm fw-bold">📄 Ver Comprobante Adjunto</a>`;
+  if (comprobanteUrl) {
+    html += `<a href="${escapeHtml(comprobanteUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm fw-bold">📄 Ver Comprobante Adjunto</a>`;
   } else if (s.requiereComprobante) {
     html += `<span class="badge bg-warning text-dark">⚠️ Pendiente de comprobante</span>`;
   }
 
-  if (esRRHH && s.urlNotaPDF) {
-    html += `<a href="${s.urlNotaPDF}" target="_blank" class="btn btn-outline-success btn-sm fw-bold">🖨️ Ver / Imprimir Nota PDF (Firma)</a>`;
+  if (esRRHH && notaPdfUrl) {
+    html += `<a href="${escapeHtml(notaPdfUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success btn-sm fw-bold">🖨️ Ver / Imprimir Nota PDF (Firma)</a>`;
   }
 
   if (esElSolicitante && s.requiereComprobante && s.estado !== 'Rechazado' && s.estado !== 'Anulado') {
-    const textoBtn = s.urlComprobante ? '🔄 Reemplazar Comprobante' : '📎 Subir Comprobante (Foto/PDF)';
-    html += `<button type="button" class="btn btn-outline-dark btn-sm fw-semibold btn-subir-comp" data-id="${s.idTramite}">${textoBtn}</button>`;
+    const textoBtn = comprobanteUrl ? '🔄 Reemplazar Comprobante' : '📎 Subir Comprobante (Foto/PDF)';
+    html += `<button type="button" class="btn btn-outline-dark btn-sm fw-semibold btn-subir-comp" data-id="${escapeHtml(s.idTramite)}">${textoBtn}</button>`;
   }
 
   html += '</div>';
@@ -393,15 +396,15 @@ function renderMisSolicitudes(lista) {
     html += `
       <div class="tramite-item">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
-          <strong>${s.tipoPermiso}</strong>
+          <strong>${escapeHtml(s.tipoPermiso)}</strong>
           ${badge}
         </div>
         <div class="small text-muted">
-          Trámite: <strong>${s.idTramite}</strong> | Del <strong>${s.fechaDesde}</strong> al <strong>${s.fechaHasta}</strong> 
-          (<strong>${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''}</strong>)
+          Trámite: <strong>${escapeHtml(s.idTramite)}</strong> | Del <strong>${escapeHtml(s.fechaDesde)}</strong> al <strong>${escapeHtml(s.fechaHasta)}</strong>
+          (<strong>${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')}</strong>)
         </div>
-        ${s.motivo ? `<div class="small text-secondary mt-1">${s.motivo}</div>` : ''}
-        ${s.obsResolucion ? `<div class="small text-dark mt-2 bg-light p-2 rounded border">Respuesta (${s.resueltoPor}): ${s.obsResolucion}</div>` : ''}
+        ${s.motivo ? `<div class="small text-secondary mt-1">${escapeHtml(s.motivo)}</div>` : ''}
+        ${s.obsResolucion ? `<div class="small text-dark mt-2 bg-light p-2 rounded border">Respuesta (${escapeHtml(s.resueltoPor)}): ${escapeHtml(s.obsResolucion)}</div>` : ''}
         ${renderBloqueComprobanteHtml(s, true, false)}
       </div>`;
   });
@@ -449,11 +452,11 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
         let alertaConflictoHtml = '';
         if (s.conflictos && s.conflictos.length > 0) {
           const detalle = s.conflictos.map(c =>
-            `<strong>${c.nombre}</strong> (${c.tipoPermiso}: del ${c.fechaDesde} al ${c.fechaHasta} - <em>${c.estado}</em>)`
+            `<strong>${escapeHtml(c.nombre)}</strong> (${escapeHtml(c.tipoPermiso)}: del ${escapeHtml(c.fechaDesde)} al ${escapeHtml(c.fechaHasta)} - <em>${escapeHtml(c.estado)}</em>)`
           ).join('<br>');
           alertaConflictoHtml = `
             <div class="alerta-superposicion my-2">
-              ⚠️ <strong>¡Alerta de Superposición en ${s.unidad}!</strong> Las fechas coinciden con:<br>
+              ⚠️ <strong>¡Alerta de Superposición en ${escapeHtml(s.unidad)}!</strong> Las fechas coinciden con:<br>
               ${detalle}
             </div>`;
         }
@@ -461,21 +464,21 @@ function renderBandejasAutorizacion(rolNorm, esDelegadoJefe, tieneModuloRRHH, ba
         html += `
           <div class="tramite-item bg-light">
             <div class="d-flex justify-content-between flex-wrap mb-1">
-              <span class="fw-bold text-dark">${s.nombre} <span class="text-muted fw-normal small">(Leg. ${s.legajo} - ${s.unidad})</span></span>
-              <span class="badge bg-secondary">${s.idTramite}</span>
+              <span class="fw-bold text-dark">${escapeHtml(s.nombre)} <span class="text-muted fw-normal small">(Leg. ${escapeHtml(s.legajo)} - ${escapeHtml(s.unidad)})</span></span>
+              <span class="badge bg-secondary">${escapeHtml(s.idTramite)}</span>
             </div>
             <div class="small mb-2">
-              <strong>Motivo:</strong> ${s.tipoPermiso}<br>
-              <strong>Fechas:</strong> ${s.fechaDesde} al ${s.fechaHasta} (<strong>${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''}</strong>)<br>
-              ${s.motivo ? `<strong>Detalle empleado:</strong> ${s.motivo}` : ''}
+              <strong>Motivo:</strong> ${escapeHtml(s.tipoPermiso)}<br>
+              <strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} (<strong>${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')}</strong>)<br>
+              ${s.motivo ? `<strong>Detalle empleado:</strong> ${escapeHtml(s.motivo)}` : ''}
             </div>
             ${renderBloqueComprobanteHtml(s, false, false)}
             ${alertaConflictoHtml}
             <div class="mt-2">
-              <input type="text" id="obs_${s.idTramite}" class="form-control form-control-sm mb-2" placeholder="Observación (ej: Motivo si denegás por cobertura)...">
+              <input type="text" id="obs_${escapeHtml(s.idTramite)}" class="form-control form-control-sm mb-2" placeholder="Observación (ej: Motivo si denegás por cobertura)...">
               <div class="d-flex gap-2">
-                <button class="btn btn-success btn-sm fw-bold flex-fill btn-resolver" data-id="${s.idTramite}" data-dec="APROBAR">✓ Aprobar y Enviar a RRHH</button>
-                <button class="btn btn-danger btn-sm fw-bold flex-fill btn-resolver" data-id="${s.idTramite}" data-dec="RECHAZAR">✕ Denegar / Pedir otra fecha</button>
+                <button class="btn btn-success btn-sm fw-bold flex-fill btn-resolver" data-id="${escapeHtml(s.idTramite)}" data-dec="APROBAR">✓ Aprobar y Enviar a RRHH</button>
+                <button class="btn btn-danger btn-sm fw-bold flex-fill btn-resolver" data-id="${escapeHtml(s.idTramite)}" data-dec="RECHAZAR">✕ Denegar / Pedir otra fecha</button>
               </div>
             </div>
           </div>`;
@@ -532,21 +535,21 @@ function renderListaBandejaRRHH(lista) {
     html += `
       <div class="tramite-item ${pendienteDoc ? 'tramite-pendiente-doc' : ''}">
         <div class="d-flex justify-content-between flex-wrap gap-1 mb-1">
-          <span class="fw-bold">${s.nombre} <span class="text-muted fw-normal small">(Leg. ${s.legajo} - ${s.unidad})</span></span>
+          <span class="fw-bold">${escapeHtml(s.nombre)} <span class="text-muted fw-normal small">(Leg. ${escapeHtml(s.legajo)} - ${escapeHtml(s.unidad)})</span></span>
           <div>
-            <span class="badge bg-secondary me-1">${s.idTramite}</span>
+            <span class="badge bg-secondary me-1">${escapeHtml(s.idTramite)}</span>
             <span class="badge ${pendienteDoc ? 'bg-danger' : 'bg-success'}">${pendienteDoc ? 'Pendiente Documentar' : 'Finalizado'}</span>
           </div>
         </div>
         <div class="small">
-          <strong>Permiso:</strong> ${s.tipoPermiso} | <strong>Fechas:</strong> ${s.fechaDesde} al ${s.fechaHasta} (${s.cantDias} día/s ${s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : ''})<br>
-          ${s.motivo ? `<strong>Detalle:</strong> ${s.motivo}<br>` : ''}
-          <strong>Estado gestión:</strong> ${s.resueltoPor} (${s.fechaResolucion})
+          <strong>Permiso:</strong> ${escapeHtml(s.tipoPermiso)} | <strong>Fechas:</strong> ${escapeHtml(s.fechaDesde)} al ${escapeHtml(s.fechaHasta)} (${escapeHtml(s.cantDias)} día/s ${escapeHtml(s.tipoDiasAplicado ? s.tipoDiasAplicado.toLowerCase() : '')})<br>
+          ${s.motivo ? `<strong>Detalle:</strong> ${escapeHtml(s.motivo)}<br>` : ''}
+          <strong>Estado gestión:</strong> ${escapeHtml(s.resueltoPor)} (${escapeHtml(s.fechaResolucion)})
         </div>
         ${renderBloqueComprobanteHtml(s, false, true)}
         ${pendienteDoc ? `
           <div class="mt-2">
-            <button id="btnFinRRHH_${s.idTramite}" class="btn btn-primary btn-sm fw-bold w-100 btn-fin-rrhh" data-id="${s.idTramite}">📄 Marcar Documentación Generada y Crear Nota PDF</button>
+            <button id="btnFinRRHH_${escapeHtml(s.idTramite)}" class="btn btn-primary btn-sm fw-bold w-100 btn-fin-rrhh" data-id="${escapeHtml(s.idTramite)}">📄 Marcar Documentación Generada y Crear Nota PDF</button>
           </div>` : ''}
       </div>`;
   });
@@ -592,13 +595,13 @@ function renderHistorialSupervision(lista) {
     html += `
       <div class="tramite-item">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
-          <span><strong>${s.nombre}</strong> <span class="text-muted small">(Leg. ${s.legajo} - ${s.unidad})</span></span>
+          <span><strong>${escapeHtml(s.nombre)}</strong> <span class="text-muted small">(Leg. ${escapeHtml(s.legajo)} - ${escapeHtml(s.unidad)})</span></span>
           ${badge}
         </div>
         <div class="small text-muted">
-          <strong>${s.idTramite}</strong> | ${s.tipoPermiso} | Del <strong>${s.fechaDesde}</strong> al <strong>${s.fechaHasta}</strong> (${s.cantDias}d)
+          <strong>${escapeHtml(s.idTramite)}</strong> | ${escapeHtml(s.tipoPermiso)} | Del <strong>${escapeHtml(s.fechaDesde)}</strong> al <strong>${escapeHtml(s.fechaHasta)}</strong> (${escapeHtml(s.cantDias)}d)
         </div>
-        ${s.motivo ? `<div class="small text-secondary mt-1">${s.motivo}</div>` : ''}
+        ${s.motivo ? `<div class="small text-secondary mt-1">${escapeHtml(s.motivo)}</div>` : ''}
         ${renderBloqueComprobanteHtml(s, false, false)}
       </div>`;
   });
@@ -657,7 +660,8 @@ function resolverTramite(idTramite, decision) {
     if (res && res.success) {
       alert(res.message);
       if (res.urlNotaPDF) {
-        window.open(res.urlNotaPDF, '_blank');
+        const notaPdfUrl = safeExternalUrl(res.urlNotaPDF);
+        if (notaPdfUrl) window.open(notaPdfUrl, '_blank', 'noopener,noreferrer');
       }
 
       const rolNorm = (state.usuarioActual.rol || "").toLowerCase();
@@ -696,9 +700,9 @@ function renderPanelDelegacionJefe(listaEmpleados) {
     contActivos.innerHTML = activos.map(d => `
       <div class="list-group-item d-flex justify-content-between align-items-center py-2">
         <div>
-          <strong class="small">${d.nombre}</strong> <span class="text-muted small">(Leg. ${d.legajo})</span>
+          <strong class="small">${escapeHtml(d.nombre)}</strong> <span class="text-muted small">(Leg. ${escapeHtml(d.legajo)})</span>
         </div>
-        <button type="button" class="btn btn-outline-danger btn-sm fw-bold btn-revocar-jefe" data-usr="${d.usuario}">🚫 Revocar</button>
+        <button type="button" class="btn btn-outline-danger btn-sm fw-bold btn-revocar-jefe" data-usr="${escapeHtml(d.usuario)}">🚫 Revocar</button>
       </div>
     `).join('');
 
@@ -719,7 +723,7 @@ function poblarSelectCandidatosJefe(disponibles) {
   }
   sel.innerHTML = disponibles
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
-    .map(d => `<option value="${d.usuario}">${d.nombre} (Leg. ${d.legajo})</option>`)
+    .map(d => `<option value="${escapeHtml(d.usuario)}">${escapeHtml(d.nombre)} (Leg. ${escapeHtml(d.legajo)})</option>`)
     .join('');
 }
 
