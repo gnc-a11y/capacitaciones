@@ -709,11 +709,15 @@ function parsearMetadatosCambioTurno(motivoRaw) {
   const txt = String(motivoRaw || "");
   const m = txt.match(/^\[CT\|USR:([^|]+)\|LEG:([^|]+)\|NOM:([^|]+)\|HOR:([^\]]+)\]\s*(.*)$/);
   if (!m) return null;
+  const horarioOriginal = m[4].match(/Turno original:\s*([^;]+)/i);
+  const horarioCambio = m[4].match(/turno\/franco a intercambiar:\s*(.+)$/i);
   return {
     reempUsuario: m[1].trim(),
     reempLegajo: m[2].trim(),
     reempNombre: m[3].trim(),
     horario: m[4].trim(),
+    horarioOriginal: horarioOriginal ? horarioOriginal[1].trim() : "",
+    horarioCambio: horarioCambio ? horarioCambio[1].trim() : "",
     detalleLimpio: m[5].trim()
   };
 }
@@ -860,7 +864,14 @@ function obtenerPanelPermisos(usuario, credencial) {
   const todasSolicitudes = obtenerTodasLasSolicitudes();
 
   const companerosSector = todosEmpleados
-    .filter(e => e.unidadNorm === emp.unidadNorm && e.usuarioNorm !== emp.usuarioNorm)
+    .filter(e =>
+      e.unidadNorm === "gnc" &&
+      e.rolNorm === "empleado" &&
+      !e.accesoRRHH &&
+      !e.esDelegadoJefe &&
+      emp.unidadNorm === "gnc" &&
+      e.usuarioNorm !== emp.usuarioNorm
+    )
     .map(e => ({
       usuario: e.usuario,
       legajo: e.legajo,
@@ -878,6 +889,8 @@ function obtenerPanelPermisos(usuario, credencial) {
     .filter(s =>
       s.estado === "Pendiente_Companero" &&
       s.cambioTurnoInfo &&
+      s.unidadNorm === "gnc" &&
+      emp.unidadNorm === "gnc" &&
       s.cambioTurnoInfo.reempUsuario.toLowerCase() === emp.usuarioNorm
     )
     .map(s => Object.assign({}, s, {
@@ -891,6 +904,12 @@ function obtenerPanelPermisos(usuario, credencial) {
     const pendientes = todasSolicitudes.filter(s => s.estado === "Pendiente_Jefe");
     bandejaJefe = pendientes.filter(s => {
       if (s.legajo === emp.legajo) return false;
+      if (s.esCambioTurno) {
+        return s.unidadNorm === "gnc" &&
+          emp.unidadNorm === "gnc" &&
+          emp.rolNorm === "jefe" &&
+          emp.usuarioNorm === s.aprobadorUsuario;
+      }
       if (emp.rolNorm === "gerente") {
         return s.aprobadorUsuario === emp.usuarioNorm || s.aprobadorUsuario === "gerente";
       }
@@ -924,7 +943,7 @@ function obtenerPanelPermisos(usuario, credencial) {
 
   if (emp.accesoRRHH) {
     bandejaRRHH = todasSolicitudes.filter(s =>
-      s.estado === "Aprobado_RRHH" || s.estado === "Finalizado_RRHH" || s.estado === "Anulado"
+      s.estado === "Aprobado_RRHH" || s.estado === "Finalizado_RRHH" || s.estado === "Finalizado_GNC" || s.estado === "Anulado"
     );
     empleadosRRHHAdmin = todosEmpleados.map(e => ({
       usuario: e.usuario,
@@ -1033,6 +1052,7 @@ function crearSolicitudPermiso(p) {
   let fHastaFinal = fHasta;
   let estadoInicial = "Pendiente_Jefe";
   let companeroObj = null;
+  let aprobadorCambioTurno = "";
   let horLimpio = "";
 
   if (esCancel) {
@@ -1056,26 +1076,52 @@ function crearSolicitudPermiso(p) {
   }
 
   if (esCambioTurno) {
+    if (emp.unidadNorm !== "gnc" || emp.rolNorm !== "empleado" || emp.accesoRRHH || emp.esDelegadoJefe) {
+      return { success: false, message: "El cambio de turno/franco está disponible únicamente para empleados de la unidad GNC." };
+    }
+
     const usrComp = String(p.companeroUsuario || "").trim().toLowerCase();
-    const horarioTurno = String(p.horarioCambioTurno || "").trim();
-    if (!usrComp || !horarioTurno) {
-      return { success: false, message: "Seleccioná el compañero/a del mismo sector e indicá el turno o franco a intercambiar." };
+    const fechaOriginal = String(p.fechaTurnoOriginal || fDesde).trim();
+    const inicioOriginal = String(p.inicioTurnoOriginal || "").trim();
+    const finOriginal = String(p.finTurnoOriginal || "").trim();
+    const fechaCambio = String(p.fechaTurnoCambio || fHasta).trim();
+    const inicioCambio = String(p.inicioTurnoCambio || "").trim();
+    const finCambio = String(p.finTurnoCambio || "").trim();
+    const fechaValida = valor => /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
+      !isNaN(new Date(valor + "T00:00:00Z").getTime()) &&
+      new Date(valor + "T00:00:00Z").toISOString().substring(0, 10) === valor;
+    const horaValida = valor => /^([01]\d|2[0-3]):[0-5]\d$/.test(valor);
+    if (!usrComp || !fechaValida(fechaOriginal) || !fechaValida(fechaCambio) ||
+        !horaValida(inicioOriginal) || !horaValida(finOriginal) ||
+        !horaValida(inicioCambio) || !horaValida(finCambio)) {
+      return { success: false, message: "Seleccioná al compañero/a y completá las fechas y horarios válidos de ambos turnos." };
     }
     const { lista: todosEmp } = obtenerMapaEmpleados();
-    companeroObj = todosEmp.find(e => e.usuarioNorm === usrComp && e.unidadNorm === emp.unidadNorm);
+    companeroObj = todosEmp.find(e =>
+      e.usuarioNorm === usrComp &&
+      e.unidadNorm === "gnc" &&
+      e.rolNorm === "empleado" &&
+      !e.accesoRRHH &&
+      !e.esDelegadoJefe
+    );
     if (!companeroObj || companeroObj.usuarioNorm === emp.usuarioNorm) {
-      return { success: false, message: "El compañero seleccionado no es válido para tu sector/unidad." };
+      return { success: false, message: "El compañero/a debe ser un empleado de la unidad GNC distinto de vos." };
     }
 
-    const diasMaxConfig = obtenerDiasMaximosConfig(shConf, tipoPermiso, emp.convenio);
-    if (diasMaxConfig > 0 && cantDiasFinal > diasMaxConfig) {
-      return {
-        success: false,
-        message: `El cambio de turno permite hasta ${diasMaxConfig} día(s) según la configuración en la hoja.`
-      };
+    const jefeGNC = todosEmp.find(e =>
+      e.usuarioNorm === emp.jefeUsuario &&
+      e.unidadNorm === "gnc" &&
+      e.rolNorm === "jefe"
+    );
+    if (!jefeGNC) {
+      return { success: false, message: "No se encontró un jefe directo de la unidad GNC para autorizar el trámite." };
     }
 
-    horLimpio = horarioTurno.replace(/[\r\n\]]+/g, " ").trim();
+    aprobadorCambioTurno = jefeGNC.usuario;
+    fDesdeFinal = fechaOriginal;
+    fHastaFinal = fechaCambio;
+    cantDiasFinal = 1;
+    horLimpio = `Turno original: ${inicioOriginal}-${finOriginal}; turno/franco a intercambiar: ${inicioCambio}-${finCambio}`;
     const motLimpio = motivo.replace(/[\r\n]+/g, " ").trim();
 
     esVacFinal = false;
@@ -1087,7 +1133,7 @@ function crearSolicitudPermiso(p) {
     return { success: false, message: "Saldo de vacaciones insuficiente." };
   }
 
-  const aprobador = emp.jefeUsuario || "gerente";
+  const aprobador = esCambioTurno ? aprobadorCambioTurno : emp.jefeUsuario || "gerente";
   const idTramite = "PRM-" + Math.floor(100000 + Math.random() * 900000);
   const ahoraStr = Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm");
 
@@ -1120,7 +1166,7 @@ function crearSolicitudPermiso(p) {
     enviarCorreoSilencioso(
       companeroObj.correo,
       `[CEEZ] Solicitud de Cambio de Turno pendiente de tu firma (${idTramite})`,
-      `Hola ${companeroObj.nombre},\n\n${emp.nombre} (Leg. ${emp.legajo} - ${emp.unidad}) solicitó un Cambio de Turno con vos del ${isoAFechaArg(fDesdeFinal)} al ${isoAFechaArg(fHastaFinal)} (${cantDiasFinal} día/s).\nTurno/Franco: ${horLimpio}\n\nIngresá al portal (${LINK_PORTAL_WEB}) -> Permisos y Vacaciones para revisar y firmar electrónicamente tu conformidad antes de pasar a Jefatura.`
+      `Hola ${companeroObj.nombre},\n\n${emp.nombre} (Leg. ${emp.legajo} - ${emp.unidad}) solicitó intercambiar turnos/francos con vos.\nTurno original de ${emp.nombre}: ${isoAFechaArg(fDesdeFinal)} (${horLimpio.split(";")[0].replace("Turno original: ", "")}).\nTurno/franco que asumirías: ${isoAFechaArg(fHastaFinal)} (${horLimpio.split(";")[1].replace(" turno/franco a intercambiar: ", "")}).\n\nIngresá al portal (${LINK_PORTAL_WEB}) -> Permisos y Vacaciones para aceptar o rechazar con tu usuario y clave. Si aceptás, pasará al jefe directo de GNC.`
     );
   } else {
     const jefeObj = todosEmpleados.find(e => e.usuarioNorm === aprobador.toLowerCase());
@@ -1147,12 +1193,11 @@ function crearSolicitudPermiso(p) {
 // 4B. FIRMA ELECTRÓNICA DEL COMPAÑERO EN CAMBIO DE TURNO
 // -------------------------------------------------------------------------
 function firmarCambioTurnoCompanero(p) {
-  const cred = p.clave || p.token || p.sessionToken;
-  const emp = cred
-    ? (p.usuario ? autenticarUsuario(p.usuario, cred) : buscarEmpleadoPorToken(cred))
-    : buscarEmpleadoPorUsuario(p.usuario);
+  const emp = p.usuario && p.clave
+    ? autenticarUsuario(p.usuario, p.clave)
+    : null;
   if (!emp) {
-    return { success: false, message: "Sesión o firma electrónica inválida." };
+    return { success: false, message: "Reingresá tu usuario y clave para firmar esta respuesta." };
   }
 
   const idTramite = String(p.idTramite || "").trim();
@@ -1164,8 +1209,14 @@ function firmarCambioTurnoCompanero(p) {
   if (!item || !item.cambioTurnoInfo) {
     return { success: false, message: "No se encontró el trámite de Cambio de Turno." };
   }
+  if (item.unidadNorm !== "gnc" || emp.unidadNorm !== "gnc" || emp.rolNorm !== "empleado") {
+    return { success: false, message: "Esta conformidad solo está habilitada para empleados de la unidad GNC." };
+  }
   if (item.estado !== "Pendiente_Companero") {
     return { success: false, message: "Este trámite ya fue gestionado." };
+  }
+  if (decision !== "APROBAR" && decision !== "RECHAZAR") {
+    return { success: false, message: "Elegí aceptar o rechazar la solicitud." };
   }
   if (item.cambioTurnoInfo.reempUsuario.toLowerCase() !== emp.usuarioNorm) {
     return { success: false, message: "No estás designado como compañero/a en este trámite." };
@@ -1240,9 +1291,12 @@ function resolverSolicitudPermiso(p) {
     if (item.cambioTurnoInfo.reempUsuario.toLowerCase() !== auth.usuarioNorm) {
       return { success: false, message: "Este trámite espera primero la aceptación del compañero/a asignado." };
     }
+    if (!p.clave) {
+      return { success: false, message: "Reingresá tu usuario y clave para firmar esta respuesta." };
+    }
     return firmarCambioTurnoCompanero({
       usuario: auth.usuario,
-      clave: p.clave || auth.sessionToken,
+      clave: p.clave,
       idTramite: idTramite,
       decision: decision,
       observacion: observacion
@@ -1251,6 +1305,13 @@ function resolverSolicitudPermiso(p) {
 
   if (item.legajo === auth.legajo) {
     return { success: false, message: "Por control interno no podés aprobar ni rechazar tu propia solicitud." };
+  }
+  if (item.esCambioTurno &&
+      (item.unidadNorm !== "gnc" ||
+       auth.unidadNorm !== "gnc" ||
+       auth.rolNorm !== "jefe" ||
+       auth.usuarioNorm !== item.aprobadorUsuario)) {
+    return { success: false, message: "Solo el jefe directo de la unidad GNC puede resolver este cambio de turno/franco." };
   }
 
   const ss = SpreadsheetApp.openById(SS_ID);
@@ -1285,17 +1346,15 @@ function resolverSolicitudPermiso(p) {
       shSol.getRange(item.fila, 17).setValue(observacion || "Anulación autorizada.");
       mensajeRespuesta = `✓ Anulación ${idTramite} aprobada. El trámite ${idOrig} quedó anulado y se reintegraron los días correspondientes.`;
     } else if (item.esCambioTurno) {
-      shSol.getRange(item.fila, 14).setValue("Finalizado_RRHH");
+      urlNotaGenerada = generarNotaLicenciaRRHHPDF(item, `${auth.nombre} (Jefatura)`, ahoraStr);
+      if (!urlNotaGenerada) {
+        return { success: false, message: "No se pudo generar la nota PDF en Drive. El trámite sigue pendiente para poder reintentar." };
+      }
+      shSol.getRange(item.fila, 14).setValue("Finalizado_GNC");
       shSol.getRange(item.fila, 15).setValue(ahoraStr);
       shSol.getRange(item.fila, 16).setValue(`${auth.nombre} (Jefatura)`);
-      if (observacion) {
-        shSol.getRange(item.fila, 17).setValue(observacion);
-      }
-
-      urlNotaGenerada = generarNotaLicenciaRRHHPDF(item, `${auth.nombre} (Jefatura)`, ahoraStr);
-      if (urlNotaGenerada) {
-        shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
-      }
+      shSol.getRange(item.fila, 17).setValue(observacion || `Aprobado por ${auth.nombre} el ${ahoraStr}. Nota enviada a RRHH para recepción externa de firmas.`);
+      shSol.getRange(item.fila, 20).setValue(urlNotaGenerada);
 
       const { lista: todosEmp } = obtenerMapaEmpleados();
       const destinatarios = [];
@@ -1306,18 +1365,16 @@ function resolverSolicitudPermiso(p) {
         const emp2 = todosEmp.find(e => e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase());
         if (emp2 && emp2.correo) destinatarios.push(emp2.correo);
       }
-      todosEmp.filter(e => e.accesoRRHH && e.correo).forEach(r => destinatarios.push(r.correo));
-
       const unicos = Array.from(new Set(destinatarios));
       if (unicos.length > 0 && urlNotaGenerada) {
         enviarCorreoSilencioso(
           unicos.join(","),
           `[CEEZ] Cambio de Turno Aprobado (${idTramite}) - Nota PDF Lista para Firmas`,
-          `Se aprobó el Cambio de Turno ${idTramite} en el sector ${item.unidad} del ${item.fechaDesde} al ${item.fechaHasta} (${item.cantDias} día/s).\n\nDetalles: ${item.motivo}\nAutorizado por: ${auth.nombre}\n\nPodés descargar e imprimir la nota oficial para firma manuscrita desde el siguiente enlace (o desde el portal):\n${urlNotaGenerada}`
+          `Se aprobó el Cambio de Turno ${idTramite} en el sector ${item.unidad}.\n\nDetalles: ${item.motivo}\nAutorizado por: ${auth.nombre}\n\nEl jefe directo debe descargar la nota, gestionar las firmas manuscritas y remitirla a RRHH por fuera de la plataforma. Podés descargarla desde el portal:\n${urlNotaGenerada}`
         );
       }
 
-      mensajeRespuesta = `✓ Cambio de Turno ${idTramite} aprobado. Se generó la Nota PDF para imprimir y firmar en el sector, y quedó registrada en RRHH.`;
+      mensajeRespuesta = `✓ Cambio de turno/franco ${idTramite} aprobado y finalizado por Jefatura GNC. La nota con los tres espacios de firma se generó en Drive; descargala para gestionar las firmas por fuera de la plataforma. RRHH y Gerencia podrán consultarla en el historial.`;
     } else {
       if (item.esVacaciones && item.cantDias > 0) {
         const okSaldo = ajustarSaldoEmpleado(item.legajo, -item.cantDias);
@@ -1344,6 +1401,9 @@ function resolverSolicitudPermiso(p) {
   } else if (decision === "FINALIZAR_RRHH") {
     if (!auth.accesoRRHH) {
       return { success: false, message: "No tenés permisos de RRHH para finalizar trámites." };
+    }
+    if (item.esCambioTurno) {
+      return { success: false, message: "Los cambios de turno/franco finalizan con la aprobación del jefe directo de GNC; RRHH solo consulta el trámite y la nota." };
     }
     shSol.getRange(item.fila, 14).setValue("Finalizado_RRHH");
     shSol.getRange(item.fila, 15).setValue(ahoraStr);
@@ -1380,6 +1440,15 @@ function ajustarSaldoEmpleado(legajo, deltaDias) {
   return true;
 }
 
+function escaparHtmlNota(valor) {
+  return String(valor == null ? "" : valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // -------------------------------------------------------------------------
 // 6. GENERADOR DE NOTA PDF OFICIAL (LICENCIAS, ANULACIÓN Y CAMBIO DE TURNO)
 // -------------------------------------------------------------------------
@@ -1392,6 +1461,7 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
     if (item.esCambioTurno && item.cambioTurnoInfo) {
       const ct = item.cambioTurnoInfo;
       const emp2 = todosEmpleados.find(e => e.usuarioNorm === ct.reempUsuario.toLowerCase()) || {};
+      const nota = escaparHtmlNota;
 
       html = `
       <!DOCTYPE html>
@@ -1420,17 +1490,17 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
         </div>
 
         <div class="meta">
-          <strong>Trámite N°:</strong> ${item.idTramite} &nbsp;|&nbsp;
-          <strong>Fecha del Pedido:</strong> ${item.fechaSolicitud} &nbsp;|&nbsp;
-          <strong>Autorizado por:</strong> ${responsableNombre} (${fechaEmision})
+          <strong>Trámite N°:</strong> ${nota(item.idTramite)} &nbsp;|&nbsp;
+          <strong>Fecha del Pedido:</strong> ${nota(item.fechaSolicitud)} &nbsp;|&nbsp;
+          <strong>Autorizado por:</strong> ${nota(responsableNombre)} (${nota(fechaEmision)})
         </div>
 
         <table>
           <tr><th colspan="2" style="text-align:center; background:#dbeafe;">DATOS DE LA PERMUTA DE TURNO</th></tr>
-          <tr><th>Sector / Unidad</th><td>${item.unidad}</td></tr>
-          <tr><th>Período del Cambio</th><td>Del <strong>${item.fechaDesde}</strong> al <strong>${item.fechaHasta}</strong> (${item.cantDias} día/s)</td></tr>
-          <tr><th>Turno / Franco a Cubrir</th><td><strong>${ct.horario}</strong></td></tr>
-          ${ct.detalleLimpio ? `<tr><th>Observaciones</th><td>${ct.detalleLimpio}</td></tr>` : ''}
+          <tr><th>Sector / Unidad</th><td>${nota(item.unidad)}</td></tr>
+          <tr><th>Turno original del solicitante</th><td><strong>${nota(item.fechaDesde)}</strong> — ${nota(ct.horarioOriginal || ct.horario)}</td></tr>
+          <tr><th>Turno/franco que asumirá el compañero</th><td><strong>${nota(item.fechaHasta)}</strong> — ${nota(ct.horarioCambio || "A coordinar")}</td></tr>
+          ${ct.detalleLimpio ? `<tr><th>Observaciones</th><td>${nota(ct.detalleLimpio)}</td></tr>` : ''}
         </table>
 
         <table>
@@ -1440,16 +1510,16 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
           </tr>
           <tr>
             <td>
-              <strong>Nombre:</strong> ${item.nombre}<br>
-              <strong>Legajo N°:</strong> ${item.legajo}<br>
-              <strong>DNI:</strong> ${emp1.dni || "-"}<br>
-              <strong>Conformidad Digital:</strong> Firmado al solicitar (${item.fechaSolicitud})
+              <strong>Nombre:</strong> ${nota(item.nombre)}<br>
+              <strong>Legajo N°:</strong> ${nota(item.legajo)}<br>
+              <strong>DNI:</strong> ${nota(emp1.dni || "-")}<br>
+              <strong>Conformidad Digital:</strong> Firmado al solicitar (${nota(item.fechaSolicitud)})
             </td>
             <td>
-              <strong>Nombre:</strong> ${ct.reempNombre}<br>
-              <strong>Legajo N°:</strong> ${ct.reempLegajo}<br>
-              <strong>DNI:</strong> ${emp2.dni || "-"}<br>
-              <strong>Conformidad Digital:</strong> ${item.obsResolucion || "Firmado electrónicamente"}
+              <strong>Nombre:</strong> ${nota(ct.reempNombre)}<br>
+              <strong>Legajo N°:</strong> ${nota(ct.reempLegajo)}<br>
+              <strong>DNI:</strong> ${nota(emp2.dni || "-")}<br>
+              <strong>Conformidad Digital:</strong> ${nota(item.resueltoPor || "Firmado electrónicamente")} — ${nota(item.fechaResolucion || "")}
             </td>
           </tr>
         </table>
@@ -1460,9 +1530,9 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
 
         <table class="firmas">
           <tr>
-            <td><div class="linea"><strong>${item.nombre}</strong><br>Firma Empleado Solicitante<br>Leg. ${item.legajo}</div></td>
-            <td><div class="linea"><strong>${ct.reempNombre}</strong><br>Firma Empleado Reemplazante<br>Leg. ${ct.reempLegajo}</div></td>
-            <td><div class="linea"><strong>Jefatura / Recepción RRHH</strong><br>Firma y Sello</div></td>
+            <td><div class="linea"><strong>${nota(item.nombre)}</strong><br>Firma Empleado Solicitante<br>Leg. ${nota(item.legajo)}</div></td>
+            <td><div class="linea"><strong>${nota(ct.reempNombre)}</strong><br>Firma Empleado Reemplazante<br>Leg. ${nota(ct.reempLegajo)}</div></td>
+            <td><div class="linea"><strong>${nota(responsableNombre.replace(/\s*\(Jefatura\)$/, ""))}</strong><br>Jefe de Unidad GNC — Firma y Sello</div></td>
           </tr>
         </table>
       </body>
@@ -1520,7 +1590,24 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
     const pdfBlob = blob.getAs("application/pdf").setName(`Nota_${item.idTramite}_${item.nombre.replace(/\s+/g, "_")}.pdf`);
     const folder = DriveApp.getFolderById(CARPETA_NOTAS_PDF_ID);
     const file = folder.createFile(pdfBlob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    if (item.esCambioTurno && item.cambioTurnoInfo) {
+      const emp2 = todosEmpleados.find(e => e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase()) || {};
+      const emails = new Set(
+        todosEmpleados
+          .filter(e =>
+            e.accesoRRHH ||
+            e.rolNorm === "gerente" ||
+            e.usuarioNorm === item.aprobadorUsuario ||
+            e.legajo === item.legajo ||
+            e.usuarioNorm === item.cambioTurnoInfo.reempUsuario.toLowerCase()
+          )
+          .map(e => String(e.correo || "").trim().toLowerCase())
+          .filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      );
+      emails.forEach(email => file.addViewer(email));
+    } else {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    }
     return file.getUrl();
   } catch (err) {
     return "";

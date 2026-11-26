@@ -180,7 +180,44 @@
                   <div id="infoTramiteCancelar" class="small text-dark mt-2"></div>
                 </div>
 
-                <div class="row g-2 mb-3">
+                <div id="panelCambioTurno" class="p-3 bg-info-subtle border border-info rounded-3 mb-3 d-none">
+                  <p class="fw-bold text-primary mb-2">🔄 Datos del cambio de turno/franco</p>
+                  <label for="turnoCompanero" class="form-label small fw-semibold">Compañero/a de la unidad GNC</label>
+                  <select id="turnoCompanero" class="form-select form-select-sm mb-3">
+                    <option value="">Seleccioná un compañero/a...</option>
+                  </select>
+                  <div class="row g-2 mb-2">
+                    <div class="col-6">
+                      <label for="turnoFechaOriginal" class="form-label small mb-1">Fecha de tu turno original</label>
+                      <input type="date" id="turnoFechaOriginal" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small mb-1">Horario original</label>
+                      <div class="input-group input-group-sm">
+                        <input type="time" id="turnoDesdeOriginal" class="form-control" aria-label="Inicio del turno original">
+                        <span class="input-group-text">a</span>
+                        <input type="time" id="turnoHastaOriginal" class="form-control" aria-label="Fin del turno original">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <label for="turnoFechaCambio" class="form-label small mb-1">Fecha del turno/franco a intercambiar</label>
+                      <input type="date" id="turnoFechaCambio" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small mb-1">Horario a intercambiar</label>
+                      <div class="input-group input-group-sm">
+                        <input type="time" id="turnoDesdeCambio" class="form-control" aria-label="Inicio del turno a intercambiar">
+                        <span class="input-group-text">a</span>
+                        <input type="time" id="turnoHastaCambio" class="form-control" aria-label="Fin del turno a intercambiar">
+                      </div>
+                    </div>
+                  </div>
+                  <small class="form-text text-muted d-block mt-2">El compañero/a recibirá la solicitud para aceptarla o rechazarla con su firma electrónica.</small>
+                </div>
+
+                <div id="bloqueFechasPermiso" class="row g-2 mb-3">
                   <div class="col-6">
                     <label class="form-label fw-semibold small">Desde</label>
                     <input type="date" id="permisoDesde" class="form-control" required>
@@ -191,7 +228,7 @@
                   </div>
                 </div>
 
-                <div class="mb-3">
+                <div id="bloqueCantidadDias" class="mb-3">
                   <label class="form-label fw-semibold small">Cantidad de Días Computados</label>
                   <input type="number" id="permisoDias" class="form-control fw-bold bg-light" min="1" readonly required>
                   <div id="desgloseCalculoDias" class="form-text text-dark mt-1"></div>
