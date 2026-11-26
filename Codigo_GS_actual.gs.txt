@@ -1684,9 +1684,17 @@ function toggleDelegacionRRHH(p) {
 }
 
 function toggleDelegacionJefe(p) {
-  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  const cred = p.clave || p.token || p.sessionToken;
+  const auth = cred
+    ? (p.usuario ? autenticarUsuario(p.usuario, cred) : buscarEmpleadoPorToken(cred))
+    : null;
   if (!auth || auth.rolNorm !== "jefe") {
-    return { success: false, message: "Solo el Jefe de Unidad puede delegar aprobaciones." };
+    return {
+      success: false,
+      message: auth
+        ? "Solo el Jefe de Unidad puede delegar aprobaciones."
+        : "Sesión no válida. Iniciá sesión nuevamente para gestionar delegados."
+    };
   }
 
   const usrDel = String(p.usuarioDelegado || "").trim().toLowerCase();

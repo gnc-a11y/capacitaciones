@@ -15,35 +15,45 @@ function limpiarDatosSesionLocal() {
   } catch (e) {}
 }
 
+function normalizarDatosSesion(res) {
+  const datosUsuario = res.user && typeof res.user === 'object'
+    ? res.user
+    : (res.usuario && typeof res.usuario === 'object' ? res.usuario : res);
+  return Object.assign({}, res, datosUsuario, {
+    usuario: datosUsuario.usuario || (typeof res.usuario === 'string' ? res.usuario : '')
+  });
+}
+
 function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
-  state.usuarioActual = res;
-  state.tokenSesion = token || res.token || state.tokenSesion;
+  const datosSesion = normalizarDatosSesion(res);
+  state.usuarioActual = datosSesion;
+  state.tokenSesion = token || datosSesion.token || datosSesion.sessionToken || state.tokenSesion;
   state.claveSesionTemporal = "";
 
   try {
-    sessionStorage.setItem('ceez_sesion_usuario', res.usuario);
+    sessionStorage.setItem('ceez_sesion_usuario', datosSesion.usuario);
     sessionStorage.setItem('ceez_sesion_token', state.tokenSesion);
     sessionStorage.removeItem('ceez_sesion_clave');
   } catch (e) {}
 
-  let etiquetaRol = res.rol;
-  if (res.rol === "Jefa_RRHH") etiquetaRol = "Jefa de RRHH";
-  else if (res.accesoRRHH) etiquetaRol = "RRHH Habilitado";
-  else if (res.esDelegadoJefe) etiquetaRol = "Aprobador Delegado";
-  else if (res.rol === "Gerente") etiquetaRol = "Gerencia General";
+  let etiquetaRol = datosSesion.rol;
+  if (datosSesion.rol === "Jefa_RRHH") etiquetaRol = "Jefa de RRHH";
+  else if (datosSesion.accesoRRHH) etiquetaRol = "RRHH Habilitado";
+  else if (datosSesion.esDelegadoJefe) etiquetaRol = "Aprobador Delegado";
+  else if (datosSesion.rol === "Gerente") etiquetaRol = "Gerencia General";
 
   const infoBadge = document.getElementById('usuarioInfo');
   if (infoBadge) {
-    infoBadge.innerText = `${res.nombre} | ${res.unidad} (${etiquetaRol})`;
+    infoBadge.innerText = `${datosSesion.nombre} | ${datosSesion.unidad} (${etiquetaRol})`;
     infoBadge.classList.remove('d-none');
   }
 
   document.getElementById('btnCerrarSesion')?.classList.remove('d-none');
   document.getElementById('btnAbrirCambioClave')?.classList.remove('d-none');
   const ccUser = document.getElementById('ccUsuario');
-  if (ccUser) ccUser.value = res.usuario;
+  if (ccUser) ccUser.value = datosSesion.usuario;
 
-  if (res.usaClaveDefecto) {
+  if (datosSesion.usaClaveDefecto || datosSesion.usandoClaveDefecto) {
     document.getElementById('alertaClaveDefecto')?.classList.remove('d-none');
   } else {
     document.getElementById('alertaClaveDefecto')?.classList.add('d-none');
@@ -54,7 +64,7 @@ function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
     document.getElementById('barraNavegacion')?.classList.remove('d-none');
     document.getElementById('vistaVideoIntro')?.classList.remove('d-none');
 
-    let videoUrl = safeExternalUrl(res.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE");
+    let videoUrl = safeExternalUrl(datosSesion.urlVideoIntro || "https://www.youtube.com/embed/jPH_Rq-6nBE");
     const iframe = document.getElementById('iframeVideoIntro');
     if (iframe && videoUrl) {
       if (!videoUrl.includes('autoplay=1')) {
@@ -66,8 +76,8 @@ function aplicarDatosSesionEnPantalla(res, token, esInicioInicial = false) {
     }
   }
 
-  renderCapacitaciones(res.capacitaciones);
-  inicializarModuloPermisos(res, !esInicioInicial);
+  renderCapacitaciones(datosSesion.capacitaciones || datosSesion.cursos || []);
+  inicializarModuloPermisos(datosSesion, !esInicioInicial);
 }
 
 export function sincronizarSesionSilenciosa() {
