@@ -14,6 +14,8 @@ export function renderCapacitaciones(lista) {
       const certificadoUrl = safeExternalUrl(cap.urlCertificado);
       if (certificadoUrl) {
         botonExamen += `<a href="${escapeHtml(certificadoUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-success w-100 fw-bold">📄 Ver / Descargar Certificado</a>`;
+      } else {
+        botonExamen += `<div class="small text-warning mt-2">${escapeHtml(cap.mensajeCertificado || 'Certificado PDF no disponible; volvé a cargar los cursos para reintentar.')}</div>`;
       }
     } else if (cap.bloqueado) {
       badgeEstado = `<span class="badge badge-status badge-bloqueado">Límite de 3 intentos alcanzado hoy</span>`;
@@ -127,7 +129,7 @@ function evaluarExamen() {
     action: 'guardarResultado',
     legajo: state.usuarioActual.legajo,
     nombre: state.usuarioActual.nombre,
-    dni: "",
+    dni: state.usuarioActual.dni,
     capacitacion: state.capacitacionActual,
     nota: nota
   }, function(res) {
@@ -140,6 +142,8 @@ function evaluarExamen() {
       const certificadoUrl = safeExternalUrl(res.urlCertificado);
       if (aprobado && certificadoUrl) {
         htmlRes += `<div class="mt-4"><a href="${escapeHtml(certificadoUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg fw-bold">🎓 Abrir / Descargar Certificado (PDF)</a></div>`;
+      } else if (aprobado) {
+        htmlRes += `<p class="small text-warning mt-3">${escapeHtml(res.mensajeCertificado || 'La aprobación quedó registrada, pero el certificado no se pudo generar. Volvé a cargar los cursos para reintentar.')}</p>`;
       }
       htmlRes += `</div>`;
       document.getElementById('cuerpoExamen').innerHTML = htmlRes;
