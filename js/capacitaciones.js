@@ -63,13 +63,19 @@ function verContenido(titulo, url) {
 
 function iniciarExamen(titulo) {
   state.capacitacionActual = titulo;
+  state.intentoExamen = "";
   document.getElementById('tituloExamen').innerText = "Evaluación: " + titulo;
   document.getElementById('cuerpoExamen').innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Generando examen...</p></div>`;
   document.getElementById('footerExamen').classList.remove('d-none');
   new window.bootstrap.Modal(document.getElementById('modalExamen')).show();
 
-  callGAS({ action: 'generarExamen', titulo: titulo }, function(res) {
+  callGAS({
+    action: 'generarExamen',
+    usuario: state.usuarioActual.usuario,
+    titulo: titulo
+  }, function(res) {
     if (res && res.success) {
+      state.intentoExamen = res.intentoId;
       state.preguntasActuales = res.preguntas;
       renderPreguntas(res.preguntas);
     } else {
@@ -84,7 +90,7 @@ function renderPreguntas(preguntas) {
   preguntas.forEach((p, idx) => {
     html += `<div class="mb-4 p-3 border rounded bg-light"><p class="fw-bold mb-2">${idx + 1}. ${escapeHtml(p.enunciado)}</p>`;
     Object.keys(p.opciones).forEach(key => {
-      const isMultiple = p.correctas.length > 1;
+      const isMultiple = p.multiple;
       const inputType = isMultiple ? 'checkbox' : 'radio';
       const inputName = isMultiple ? `p_${idx}_${key}` : `p_${idx}`;
       html += `
@@ -103,11 +109,15 @@ export function initCapacitacionesEvents() {
 }
 
 function evaluarExamen() {
-  let correctasContador = 0;
+  if (!state.intentoExamen || !state.preguntasActuales.length) {
+    document.getElementById('cuerpoExamen').innerHTML = '<div class="alert alert-danger">No se encontró el intento activo. Cerrá y volvé a iniciar la evaluación.</div>';
+    return;
+  }
+
+  const respuestas = {};
   state.preguntasActuales.forEach((p, idx) => {
-    const isMultiple = p.correctas.length > 1;
-    let seleccionadas = [];
-    if (isMultiple) {
+    const seleccionadas = [];
+    if (p.multiple) {
       Object.keys(p.opciones).forEach(key => {
         const input = document.getElementById(`p_${idx}_${key}`);
         if (input && input.checked) seleccionadas.push(key);
@@ -116,25 +126,22 @@ function evaluarExamen() {
       const checked = document.querySelector(`input[name="p_${idx}"]:checked`);
       if (checked) seleccionadas.push(checked.value);
     }
-    seleccionadas.sort();
-    const correctas = [...p.correctas].sort();
-    if (JSON.stringify(seleccionadas) === JSON.stringify(correctas)) correctasContador++;
+    respuestas[p.id] = seleccionadas;
   });
 
-  const nota = Math.round((correctasContador / state.preguntasActuales.length) * 100);
   document.getElementById('cuerpoExamen').innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Procesando resultado...</p></div>`;
   document.getElementById('footerExamen').classList.add('d-none');
 
   callGAS({
     action: 'guardarResultado',
-    legajo: state.usuarioActual.legajo,
-    nombre: state.usuarioActual.nombre,
-    dni: state.usuarioActual.dni,
-    capacitacion: state.capacitacionActual,
-    nota: nota
+    usuario: state.usuarioActual.usuario,
+    intentoId: state.intentoExamen,
+    respuestas: JSON.stringify(respuestas)
   }, function(res) {
     if (res && res.success) {
       const aprobado = res.estado === "Aprobado";
+      const nota = res.nota;
+      state.intentoExamen = "";
       let htmlRes = `
         <div class="alert ${aprobado ? "alert-success" : "alert-danger"} text-center p-4">
           <h4>${aprobado ? "¡Felicitaciones! Has Aprobado" : "Evaluación Desaprobada"}</h4>
