@@ -6,6 +6,7 @@ const SS_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 const CARPETA_COMPROBANTES_ID = "1sZ_gT4vU4vVCloI9x8JrvL6Y1xB6h15H";
 const CARPETA_NOTAS_PDF_ID = "1sZ_gT4vU4vVCloI9x8JrvL6Y1xB6h15H";
 const CARPETA_LICENCIAS_PDF_ID = "1WkvH-GgEHDVOHH1lje8E4Yx74YwEnnep";
+const CARPETA_CERTIFICADOS_PDF_ID = "1nbVzQ-R_4B0K60AaAr8ZFkk4_YCSEwLt";
 const LINK_PORTAL_WEB = "https://capacitacionesceez.com.ar";
 const LOGO_CEEZ_DATA_URI = "data:image/png;base64,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";
 
@@ -290,7 +291,8 @@ function construirCursosDeEmpleado(emp) {
             aprobado: false,
             nota: 0,
             intentosHoy: 0,
-            urlCertificado: ""
+            urlCertificado: "",
+            mensajeCertificado: ""
           };
         }
         if (rFechaStr === hoyArg || rFechaStr === hoyArgSinCero) {
@@ -298,9 +300,11 @@ function construirCursosDeEmpleado(emp) {
         }
         if (normalizarTexto(rEstado) === "aprobado") {
           resultadosMap[rCurso].aprobado = true;
-          if (rCert && rCert.startsWith("http")) {
-            resultadosMap[rCurso].urlCertificado = rCert;
-          }
+          resultadosMap[rCurso].urlCertificado = rCert.startsWith("http") ? rCert : "";
+          resultadosMap[rCurso].filaCertificado = i + 1;
+          resultadosMap[rCurso].nombreCertificado = String(resData[i][2] || emp.nombre).trim();
+          resultadosMap[rCurso].notaCertificado = rNota;
+          resultadosMap[rCurso].fechaCertificado = rFechaRaw;
         }
         if (rNota > resultadosMap[rCurso].nota) {
           resultadosMap[rCurso].nota = rNota;
@@ -308,6 +312,31 @@ function construirCursosDeEmpleado(emp) {
       }
     }
   }
+
+  Object.keys(resultadosMap).forEach(titulo => {
+    const resultado = resultadosMap[titulo];
+    if (!resultado.aprobado || resultado.urlCertificado) return;
+
+    const fechaCertificado = resultado.fechaCertificado instanceof Date
+      ? Utilities.formatDate(resultado.fechaCertificado, "America/Argentina/Buenos_Aires", "dd/MM/yyyy")
+      : String(resultado.fechaCertificado || "").trim().split(" ")[0];
+    const certificado = generarCertificadoCapacitacionPDF(
+      resultado.nombreCertificado || emp.nombre,
+      emp.dni,
+      emp.legajo,
+      titulo,
+      resultado.notaCertificado,
+      fechaCertificado
+    );
+    if (certificado.url) {
+      shRes.getRange(resultado.filaCertificado, 9).setValue(certificado.url);
+      shRes.getRange(resultado.filaCertificado, 10).setValue(certificado.codigoValidacion);
+      resultado.urlCertificado = certificado.url;
+      resultado.mensajeCertificado = "";
+    } else {
+      resultado.mensajeCertificado = certificado.error;
+    }
+  });
 
   const cursos = [];
   if (shCursos && shCursos.getLastRow() >= 2) {
@@ -367,7 +396,7 @@ function construirCursosDeEmpleado(emp) {
         if (keyMatch) evalInfo = resultadosMap[keyMatch];
       }
       if (!evalInfo) {
-        evalInfo = { aprobado: false, nota: null, intentosHoy: 0, urlCertificado: "" };
+        evalInfo = { aprobado: false, nota: null, intentosHoy: 0, urlCertificado: "", mensajeCertificado: "" };
       }
 
       const intentosHoy = evalInfo.intentosHoy || 0;
@@ -383,7 +412,8 @@ function construirCursosDeEmpleado(emp) {
         nota: evalInfo.nota,
         intentosHoy: intentosHoy,
         bloqueado: !aprobado && intentosHoy >= 3,
-        urlCertificado: evalInfo.urlCertificado || ""
+        urlCertificado: evalInfo.urlCertificado || "",
+        mensajeCertificado: evalInfo.mensajeCertificado || ""
       });
     }
   }
@@ -619,8 +649,21 @@ function guardarResultadoEvaluacion(p) {
   }
 
   let urlCertificado = "";
+  let codigoValidacion = "";
+  let mensajeCertificado = "";
   if (aprobado) {
-    urlCertificado = generarCertificadoCapacitacionPDF(nombre, legajo, capacitacion, nota, fechaStr);
+    const empleado = obtenerMapaEmpleados().lista.find(e => e.legajo === legajo);
+    const certificado = generarCertificadoCapacitacionPDF(
+      empleado ? empleado.nombre : nombre,
+      empleado ? empleado.dni : String(p.dni || ""),
+      legajo,
+      capacitacion,
+      nota,
+      fechaStr.split(" ")[0]
+    );
+    urlCertificado = certificado.url;
+    codigoValidacion = certificado.codigoValidacion;
+    mensajeCertificado = certificado.error;
   }
 
   shRes.appendRow([
@@ -632,7 +675,8 @@ function guardarResultadoEvaluacion(p) {
     estadoTxt,
     intentosDia,
     intentosTotales,
-    urlCertificado
+    urlCertificado,
+    codigoValidacion
   ]);
 
   return {
@@ -640,49 +684,91 @@ function guardarResultadoEvaluacion(p) {
     estado: estadoTxt,
     aprobado: aprobado,
     nota: nota,
-    urlCertificado: urlCertificado
+    urlCertificado: urlCertificado,
+    mensajeCertificado: mensajeCertificado
   };
 }
 
-function generarCertificadoCapacitacionPDF(nombre, legajo, capacitacion, nota, fechaStr) {
+function generarCertificadoCapacitacionPDF(nombre, dni, legajo, capacitacion, nota, fechaStr) {
+  let file = null;
   try {
+    const escaparHtml = valor => String(valor == null ? "" : valor).replace(/[&<>"']/g, caracter => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[caracter]);
+    const codigoValidacion = "CEEZ-" + Utilities.getUuid().replace(/-/g, "").substring(0, 6).toUpperCase();
+    const nombreArchivoSeguro = String(nombre || "").replace(/[\\/:*?"<>|]+/g, "_");
+    const cursoSeguro = String(capacitacion || "").replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_");
     const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
       <style>
-        body { font-family: Arial, sans-serif; color: #1e293b; padding: 48px; text-align: center; border: 8px solid #0d6efd; margin: 20px; }
-        .org { font-size: 20px; font-weight: bold; color: #0d6efd; letter-spacing: 1px; margin-bottom: 6px; }
-        .sub { font-size: 13px; color: #64748b; margin-bottom: 36px; }
-        .titulo { font-size: 28px; font-weight: bold; color: #0f172a; margin-bottom: 24px; }
-        .texto { font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
-        .empleado { font-size: 24px; font-weight: bold; color: #0d6efd; margin: 14px 0; }
-        .curso { font-size: 19px; font-weight: bold; color: #1e3a8a; margin: 16px 0 28px 0; }
-        .pie { margin-top: 50px; font-size: 12px; color: #475569; }
+        @page { size: A4 landscape; margin: 0; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 10mm; width: 297mm; height: 210mm; font-family: Arial, sans-serif; color: #34445d; }
+        .marco-externo { width: 100%; height: 100%; border: 8px solid #1e3a5f; padding: 6mm; }
+        .marco-interno { width: 100%; height: 100%; border: 2px solid #3b82c4; padding: 9mm 15mm; position: relative; text-align: center; }
+        .encabezado { width: 100%; border-collapse: collapse; }
+        .encabezado td { border: 0; vertical-align: middle; }
+        .celda-logo { width: 65px; text-align: left; }
+        .celda-titulo { text-align: center; }
+        .celda-vacia { width: 65px; }
+        .logo { width: 54px; height: 66px; object-fit: contain; }
+        .titulo { color: #1e3a5f; font-size: 23px; font-weight: bold; letter-spacing: 2px; margin: 0 0 5px; }
+        .subtitulo { color: #52647e; font-size: 11px; font-weight: bold; letter-spacing: .5px; }
+        .otorgamiento { margin-top: 10mm; font-size: 14px; }
+        .empleado { display: inline-block; color: #3478b9; font-size: 24px; font-weight: bold; margin: 2mm 0 1mm; padding: 0 5mm 2mm; border-bottom: 1px solid #cbd5e1; }
+        .identificacion { font-size: 13px; font-weight: bold; }
+        .cuerpo { margin-top: 9mm; font-size: 14px; }
+        .curso { margin: 2mm 0 8mm; color: #111827; font-size: 20px; font-weight: bold; }
+        .resultado { font-size: 13px; }
+        .pie { position: absolute; left: 15mm; right: 15mm; bottom: 8mm; width: calc(100% - 30mm); border-collapse: collapse; border-top: 1px solid #cbd5e1; padding-top: 3mm; font-size: 11px; }
+        .pie td { border: 0; padding-top: 3mm; }
+        .pie td:last-child { text-align: right; }
       </style>
     </head>
     <body>
-      <div class="org">COOPERATIVA DE ENERGÍA ELÉCTRICA DE ZAPALA</div>
-      <div class="sub">Programa Interno de Capacitación y Seguridad Laboral</div>
-      <div class="titulo">CERTIFICADO DE APROBACIÓN</div>
-      <div class="texto">Se certifica que</div>
-      <div class="empleado">${nombre} (Legajo N° ${legajo})</div>
-      <div class="texto">ha completado y aprobado satisfactoriamente la evaluación correspondiente a la capacitación:</div>
-      <div class="curso">"${capacitacion}"</div>
-      <div class="texto">Calificación obtenida: <strong>${nota}%</strong> — Fecha de emisión: <strong>${fechaStr}</strong></div>
-      <div class="pie">Documento generado automáticamente por el Portal Interno CEEZ</div>
+      <div class="marco-externo"><div class="marco-interno">
+        <table class="encabezado"><tr>
+          <td class="celda-logo"><img class="logo" src="${LOGO_CEEZ_DATA_URI}" alt="Logo CEEZ"></td>
+          <td class="celda-titulo">
+            <div class="titulo">CERTIFICADO DE APROBACIÓN</div>
+            <div class="subtitulo">COOPERATIVA DE ENERGÍA ELÉCTRICA DE ZAPALA - PORTAL DE CAPACITACIONES</div>
+          </td>
+          <td class="celda-vacia"></td>
+        </tr></table>
+        <div class="otorgamiento">Se otorga el presente certificado a:</div>
+        <div class="empleado">${escaparHtml(nombre)}</div>
+        <div class="identificacion">DNI N°: ${escaparHtml(dni || "-")} &nbsp; | &nbsp; Legajo N°: ${escaparHtml(legajo)}</div>
+        <div class="cuerpo">Por haber completado y aprobado satisfactoriamente la capacitación de:</div>
+        <div class="curso">"${escaparHtml(capacitacion)}"</div>
+        <div class="resultado">Puntaje Obtenido: <strong>${escaparHtml(nota)}%</strong> &nbsp; | &nbsp; Fecha de Emisión: <strong>${escaparHtml(fechaStr)}</strong></div>
+        <table class="pie"><tr>
+          <td>Código de Validación: <strong>${codigoValidacion}</strong></td>
+          <td>Emitido por CEEZ Capacitaciones</td>
+        </tr></table>
+      </div></div>
     </body>
     </html>`;
 
-    const blob = Utilities.newBlob(html, "text/html", `Certificado_${legajo}.html`);
-    const pdfBlob = blob.getAs("application/pdf").setName(`Certificado_${legajo}_${capacitacion.replace(/\s+/g, "_")}.pdf`);
-    const folder = DriveApp.getFolderById(CARPETA_NOTAS_PDF_ID);
-    const file = folder.createFile(pdfBlob);
+    const blob = Utilities.newBlob(html, "text/html", `Certificado_${legajo}_${nombreArchivoSeguro}.html`);
+    const pdfBlob = blob.getAs("application/pdf").setName(`Certificado_${legajo}_${cursoSeguro}.pdf`);
+    const folder = DriveApp.getFolderById(CARPETA_CERTIFICADOS_PDF_ID);
+    file = folder.createFile(pdfBlob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return file.getUrl();
+    return { url: file.getUrl(), codigoValidacion: codigoValidacion, error: "" };
   } catch (err) {
-    return "";
+    Logger.log("Error al generar certificado para legajo " + legajo + " (" + capacitacion + "): " + err.message);
+    return {
+      url: "",
+      codigoValidacion: "",
+      error: "No se pudo generar el certificado PDF. Verificá el acceso de Apps Script a la carpeta de Drive y volvé a ingresar."
+    };
   }
 }
 
