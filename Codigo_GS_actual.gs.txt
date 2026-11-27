@@ -52,7 +52,7 @@ function ejecutarAccion(p, callback) {
     } else if (action === "getCursos") {
       result = obtenerCursosUsuario(p.usuario, credencial);
     } else if (action === "generarExamen" || action === "getExamen") {
-      result = generarExamenCurso(p.titulo || p.cursoId);
+      result = generarExamenCurso(p);
     } else if (action === "guardarResultado" || action === "guardarExamen") {
       result = guardarResultadoEvaluacion(p);
     } else if (action === "getPanelPermisos") {
@@ -239,6 +239,15 @@ function autenticarUsuario(usuario, claveOToken) {
 
   if (clv !== claveEsperada && clv !== tokenEsperado) return null;
   return emp;
+}
+
+function autenticarSolicitud(p) {
+  const credencial = String((p && (p.clave || p.token || p.sessionToken)) || "").trim();
+  if (!credencial) return null;
+  const usuario = String((p && p.usuario) || "").trim();
+  return usuario
+    ? autenticarUsuario(usuario, credencial)
+    : buscarEmpleadoPorToken(credencial);
 }
 
 // -------------------------------------------------------------------------
@@ -494,15 +503,20 @@ function procesarCambioClave(usuario, claveActual, claveNueva) {
 // 2. CAPACITACIONES Y EVALUACIONES (banco_preguntas + evaluacionesresultados)
 // -------------------------------------------------------------------------
 function obtenerCursosUsuario(usuario, credencial) {
-  const emp = credencial ? autenticarUsuario(usuario, credencial) : buscarEmpleadoPorUsuario(usuario);
+  const emp = credencial
+    ? (usuario ? autenticarUsuario(usuario, credencial) : buscarEmpleadoPorToken(credencial))
+    : null;
   if (!emp) return { success: false, message: "Sesión no válida.", cursos: [], capacitaciones: [] };
 
   const { videoIntroUrl, cursos } = construirCursosDeEmpleado(emp);
   return { success: true, videoIntroUrl: videoIntroUrl, cursos: cursos, capacitaciones: cursos };
 }
 
-function generarExamenCurso(tituloBuscado) {
-  const ref = String(tituloBuscado || "").trim();
+function generarExamenCurso(p) {
+  const auth = autenticarSolicitud(p);
+  if (!auth) return { success: false, message: "Sesión no válida." };
+
+  const ref = String((p && (p.titulo || p.cursoId)) || "").trim();
   const refNorm = normalizarTexto(ref);
   if (!ref) return { success: false, message: "No se indicó la capacitación." };
 
@@ -560,6 +574,15 @@ function generarExamenCurso(tituloBuscado) {
     };
   }
 
+  const ssRes = SpreadsheetApp.openById(SS_ID).getSheetByName("evaluacionesresultados");
+  const ahora = new Date();
+  const hoyArg = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  const hoyArgSinCero = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "d/M/yyyy");
+  const intentos = contarIntentosEvaluacion(ssRes, auth.legajo, nombreMatch, hoyArg, hoyArgSinCero);
+  if (intentos.dia >= 3) {
+    return { success: false, message: "Alcanzaste el límite de 3 intentos para esta capacitación por hoy." };
+  }
+
   const filasPreguntas = grupos[nombreMatch];
   const todasPreguntas = [];
 
@@ -603,87 +626,176 @@ function generarExamenCurso(tituloBuscado) {
     todasPreguntas[j] = tmp;
   }
 
+  const preguntasExamen = todasPreguntas.slice(0, 10).map((pregunta, index) => ({
+    id: `q${index}`,
+    enunciado: pregunta.enunciado,
+    opciones: pregunta.opciones,
+    multiple: pregunta.correctas.length > 1
+  }));
+  const intentoId = Utilities.getUuid();
+  const respuestasEsperadas = todasPreguntas.slice(0, 10).map((pregunta, index) => ({
+    id: `q${index}`,
+    correctas: pregunta.correctas,
+    opciones: Object.keys(pregunta.opciones)
+  }));
+  CacheService.getScriptCache().put(
+    `examen_intento_${intentoId}`,
+    JSON.stringify({
+      usuario: auth.usuarioNorm,
+      legajo: auth.legajo,
+      capacitacion: nombreMatch,
+      preguntas: respuestasEsperadas
+    }),
+    1800
+  );
+
   return {
     success: true,
-    preguntas: todasPreguntas.slice(0, 10)
+    intentoId: intentoId,
+    preguntas: preguntasExamen
   };
 }
 
-function guardarResultadoEvaluacion(p) {
-  const legajo = String(p.legajo || "").trim();
-  const nombre = String(p.nombre || "").trim();
-  const capacitacion = String(p.capacitacion || "").trim();
-  const nota = Number(p.nota) || 0;
+function contarIntentosEvaluacion(shRes, legajo, capacitacion, hoyArg, hoyArgSinCero) {
+  let dia = 0;
+  let total = 0;
+  if (!shRes || shRes.getLastRow() < 2) return { dia: dia, total: total };
 
-  if (!legajo || !capacitacion) {
-    return { success: false, message: "Faltan datos del empleado o de la capacitación." };
+  const resultados = shRes.getDataRange().getValues();
+  for (let i = 1; i < resultados.length; i++) {
+    const fila = resultados[i];
+    if (String(fila[1] || "").trim() !== String(legajo).trim() ||
+        normalizarTexto(fila[3]) !== normalizarTexto(capacitacion)) continue;
+    total++;
+    const fechaRaw = fila[0];
+    const fecha = fechaRaw instanceof Date
+      ? Utilities.formatDate(fechaRaw, "America/Argentina/Buenos_Aires", "dd/MM/yyyy")
+      : String(fechaRaw || "").trim().split(" ")[0];
+    if (fecha === hoyArg || fecha === hoyArgSinCero) dia++;
+  }
+  return { dia: dia, total: total };
+}
+
+function guardarResultadoEvaluacion(p) {
+  const auth = autenticarSolicitud(p);
+  if (!auth) return { success: false, message: "Sesión no válida." };
+
+  const intentoId = String(p.intentoId || "").trim();
+  const cache = CacheService.getScriptCache();
+  const cacheKey = `examen_intento_${intentoId}`;
+  let respuestas = p.respuestas;
+  if (typeof respuestas === "string") {
+    try {
+      respuestas = JSON.parse(respuestas);
+    } catch (err) {
+      return { success: false, message: "Las respuestas enviadas no tienen un formato válido." };
+    }
+  }
+  if (!intentoId || !respuestas || typeof respuestas !== "object" || Array.isArray(respuestas)) {
+    return { success: false, message: "Faltan las respuestas del intento de evaluación." };
   }
 
-  const ss = SpreadsheetApp.openById(SS_ID);
-  const shRes = ss.getSheetByName("evaluacionesresultados");
-  const aprobado = nota >= 60;
-  const estadoTxt = aprobado ? "Aprobado" : "Desaprobado";
-  const ahora = new Date();
-  const fechaStr = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm:ss");
-  const hoyArg = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
-  const hoyArgSinCero = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "d/M/yyyy");
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    return { success: false, message: "El sistema está ocupado. Volvé a enviar tus respuestas en unos segundos." };
+  }
 
-  let intentosDia = 1;
-  let intentosTotales = 1;
-  if (shRes && shRes.getLastRow() >= 2) {
-    const resData = shRes.getDataRange().getValues();
-    for (let i = 1; i < resData.length; i++) {
-      const rLeg = String(resData[i][1] || "").trim();
-      const rCurso = String(resData[i][3] || "").trim();
-      if (rLeg === legajo && normalizarTexto(rCurso) === normalizarTexto(capacitacion)) {
-        intentosTotales++;
-        const rFechaRaw = resData[i][0];
-        const rFechaStr = rFechaRaw instanceof Date
-          ? Utilities.formatDate(rFechaRaw, "America/Argentina/Buenos_Aires", "dd/MM/yyyy")
-          : String(rFechaRaw || "").trim().split(" ")[0];
-        if (rFechaStr === hoyArg || rFechaStr === hoyArgSinCero) {
-          intentosDia++;
-        }
-      }
+  let resultado;
+  try {
+    const intentoRaw = cache.get(cacheKey);
+    if (!intentoRaw) {
+      return { success: false, message: "El intento venció o ya fue enviado. Generá una nueva evaluación." };
     }
+    const intento = JSON.parse(intentoRaw);
+    if (intento.usuario !== auth.usuarioNorm || intento.legajo !== auth.legajo) {
+      return { success: false, message: "El intento no pertenece a esta sesión." };
+    }
+
+    const idsEsperados = new Set(intento.preguntas.map(pregunta => pregunta.id));
+    if (Object.keys(respuestas).some(id => !idsEsperados.has(id))) {
+      return { success: false, message: "Las respuestas no corresponden a este intento." };
+    }
+
+    let correctasContador = 0;
+    for (const pregunta of intento.preguntas) {
+      const seleccionadas = respuestas[pregunta.id] == null ? [] : respuestas[pregunta.id];
+      if (!Array.isArray(seleccionadas)) {
+        return { success: false, message: "Las respuestas enviadas no tienen un formato válido." };
+      }
+      const claves = Array.from(new Set(seleccionadas.map(valor => String(valor).trim().toUpperCase())));
+      if (claves.some(clave => !pregunta.opciones.includes(clave))) {
+        return { success: false, message: "Se recibieron opciones que no pertenecen a la evaluación." };
+      }
+      const correctas = [...pregunta.correctas].sort();
+      if (JSON.stringify(claves.sort()) === JSON.stringify(correctas)) correctasContador++;
+    }
+
+    const ahora = new Date();
+    const fechaStr = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy HH:mm:ss");
+    const hoyArg = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+    const hoyArgSinCero = Utilities.formatDate(ahora, "America/Argentina/Buenos_Aires", "d/M/yyyy");
+    const ssRes = SpreadsheetApp.openById(SS_ID).getSheetByName("evaluacionesresultados");
+    if (!ssRes) return { success: false, message: "No está disponible la hoja de resultados de evaluaciones." };
+    const intentos = contarIntentosEvaluacion(ssRes, auth.legajo, intento.capacitacion, hoyArg, hoyArgSinCero);
+    if (intentos.dia >= 3) {
+      return { success: false, message: "Alcanzaste el límite de 3 intentos para esta capacitación por hoy." };
+    }
+
+    const nota = Math.round((correctasContador / intento.preguntas.length) * 100);
+    const aprobado = nota >= 60;
+    cache.remove(cacheKey);
+    ssRes.appendRow([
+      fechaStr,
+      auth.legajo,
+      auth.nombre,
+      intento.capacitacion,
+      nota,
+      aprobado ? "Aprobado" : "Desaprobado",
+      intentos.dia + 1,
+      intentos.total + 1,
+      "",
+      ""
+    ]);
+    resultado = {
+      fila: ssRes.getLastRow(),
+      fecha: fechaStr.split(" ")[0],
+      nota: nota,
+      aprobado: aprobado,
+      estado: aprobado ? "Aprobado" : "Desaprobado",
+      capacitacion: intento.capacitacion
+    };
+  } finally {
+    lock.releaseLock();
   }
 
   let urlCertificado = "";
   let codigoValidacion = "";
   let mensajeCertificado = "";
-  if (aprobado) {
-    const empleado = obtenerMapaEmpleados().lista.find(e => e.legajo === legajo);
+  if (resultado.aprobado) {
     const certificado = generarCertificadoCapacitacionPDF(
-      empleado ? empleado.nombre : nombre,
-      empleado ? empleado.dni : String(p.dni || ""),
-      legajo,
-      capacitacion,
-      nota,
-      fechaStr.split(" ")[0]
+      auth.nombre,
+      auth.dni,
+      auth.legajo,
+      resultado.capacitacion,
+      resultado.nota,
+      resultado.fecha
     );
     urlCertificado = certificado.url;
     codigoValidacion = certificado.codigoValidacion;
     mensajeCertificado = certificado.error;
+    if (urlCertificado) {
+      SpreadsheetApp.openById(SS_ID).getSheetByName("evaluacionesresultados")
+        .getRange(resultado.fila, 9).setValue(urlCertificado);
+      SpreadsheetApp.openById(SS_ID).getSheetByName("evaluacionesresultados")
+        .getRange(resultado.fila, 10).setValue(codigoValidacion);
+    }
   }
-
-  shRes.appendRow([
-    fechaStr,
-    legajo,
-    nombre,
-    capacitacion,
-    nota,
-    estadoTxt,
-    intentosDia,
-    intentosTotales,
-    urlCertificado,
-    codigoValidacion
-  ]);
 
   return {
     success: true,
-    estado: estadoTxt,
-    aprobado: aprobado,
-    nota: nota,
+    estado: resultado.estado,
+    aprobado: resultado.aprobado,
+    nota: resultado.nota,
     urlCertificado: urlCertificado,
     mensajeCertificado: mensajeCertificado
   };
@@ -902,8 +1014,10 @@ function obtenerTodasLasSolicitudes() {
 }
 
 function obtenerPanelPermisos(usuario, credencial) {
-  const emp = credencial ? autenticarUsuario(usuario, credencial) : buscarEmpleadoPorUsuario(usuario);
-  if (!emp) return { success: false, message: "Empleado no encontrado: " + usuario };
+  const emp = credencial
+    ? (usuario ? autenticarUsuario(usuario, credencial) : buscarEmpleadoPorToken(credencial))
+    : null;
+  if (!emp) return { success: false, message: "Sesión no válida." };
 
   const ss = SpreadsheetApp.openById(SS_ID);
   const shConf = ss.getSheetByName("config_permisos");
@@ -1392,10 +1506,7 @@ function notificarCambioTurnoAprobado(item, auth, urlNotaGenerada) {
 // 5. RESOLUCIÓN POR JEFATURA / GERENCIA Y FINALIZACIÓN EN RRHH
 // -------------------------------------------------------------------------
 function resolverSolicitudPermiso(p) {
-  const cred = p.clave || p.token || p.sessionToken;
-  const auth = cred
-    ? (p.usuario ? autenticarUsuario(p.usuario, cred) : buscarEmpleadoPorToken(cred))
-    : buscarEmpleadoPorUsuario(p.usuario);
+  const auth = autenticarSolicitud(p);
   if (!auth) return { success: false, message: "Sesión no válida." };
 
   const idTramite = String(p.idTramite || "").trim();
@@ -1426,12 +1537,14 @@ function resolverSolicitudPermiso(p) {
   if (item.legajo === auth.legajo) {
     return { success: false, message: "Por control interno no podés aprobar ni rechazar tu propia solicitud." };
   }
-  if (item.esCambioTurno &&
-      (item.unidadNorm !== "gnc" ||
-       auth.unidadNorm !== "gnc" ||
-       auth.rolNorm !== "jefe" ||
-       auth.usuarioNorm !== item.aprobadorUsuario)) {
-    return { success: false, message: "Solo el jefe directo de la unidad GNC puede resolver este cambio de turno/franco." };
+  if ((decision === "APROBAR" || decision === "RECHAZAR") &&
+      !puedeResolverComoJefatura(auth, item)) {
+    return { success: false, message: "No tenés autorización para resolver este trámite." };
+  }
+  if (decision === "REGENERAR_NOTA_GNC" &&
+      (!item.esCambioTurno || item.estado !== "Aprobado_GNC_Pendiente_Nota" ||
+       !puedeResolverComoJefatura(auth, item))) {
+    return { success: false, message: "Solo el jefe directo de GNC puede regenerar esta nota pendiente." };
   }
 
   const ss = SpreadsheetApp.openById(SS_ID);
@@ -1524,7 +1637,7 @@ function resolverSolicitudPermiso(p) {
       mensajeRespuesta = `✓ Nota PDF de ${idTramite} generada y guardada en Drive.`;
     }
   } else if (decision === "FINALIZAR_RRHH") {
-    if (!auth.accesoRRHH) {
+    if (!auth.accesoRRHH || item.estado !== "Aprobado_RRHH") {
       return { success: false, message: "No tenés permisos de RRHH para finalizar trámites." };
     }
     if (item.esCambioTurno) {
@@ -1556,6 +1669,23 @@ function resolverSolicitudPermiso(p) {
     empleadosRRHHAdmin: panel.empleadosRRHHAdmin,
     historialSupervision: panel.historialSupervision
   };
+}
+
+function puedeResolverComoJefatura(auth, item) {
+  if (item.esCambioTurno) {
+    return item.unidadNorm === "gnc" &&
+      auth.unidadNorm === "gnc" &&
+      auth.rolNorm === "jefe" &&
+      auth.usuarioNorm === item.aprobadorUsuario;
+  }
+  if (auth.rolNorm === "gerente") {
+    return item.aprobadorUsuario === auth.usuarioNorm || item.aprobadorUsuario === "gerente";
+  }
+  if (auth.rolNorm !== "jefe" && auth.rolNorm !== "jefa_rrhh" && !auth.esDelegadoJefe) {
+    return false;
+  }
+  return item.aprobadorUsuario === auth.usuarioNorm ||
+    (auth.esDelegadoJefe && auth.unidadNorm === item.unidadNorm);
 }
 
 function ajustarSaldoEmpleado(legajo, deltaDias) {
@@ -1804,7 +1934,7 @@ function generarNotaLicenciaRRHHPDF(item, responsableNombre, fechaEmision) {
 // 7. ADMINISTRACIÓN RRHH, DELEGACIONES Y COMPROBANTES
 // -------------------------------------------------------------------------
 function actualizarSaldoVacacionesRRHH(p) {
-  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  const auth = autenticarSolicitud(p);
   if (!auth || !auth.accesoRRHH) return { success: false, message: "Sin permisos de RRHH." };
 
   const legajoTarget = String(p.legajoTarget || "").trim();
@@ -1814,6 +1944,7 @@ function actualizarSaldoVacacionesRRHH(p) {
   }
 
   const { sh, idx, lista } = obtenerMapaEmpleados();
+  if (idx.vacaciones === -1) return { success: false, message: "Falta la columna de saldo de vacaciones en la hoja empleados." };
   const emp = lista.find(e => e.legajo === legajoTarget);
   if (!emp) return { success: false, message: "Empleado no encontrado." };
 
@@ -1822,7 +1953,7 @@ function actualizarSaldoVacacionesRRHH(p) {
 }
 
 function agregarFeriadoRRHH(p) {
-  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  const auth = autenticarSolicitud(p);
   if (!auth || !auth.accesoRRHH) return { success: false, message: "Sin permisos de RRHH." };
 
   const fecha = String(p.fecha || "").trim();
@@ -1836,7 +1967,7 @@ function agregarFeriadoRRHH(p) {
 }
 
 function eliminarFeriadoRRHH(p) {
-  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  const auth = autenticarSolicitud(p);
   if (!auth || !auth.accesoRRHH) return { success: false, message: "Sin permisos de RRHH." };
 
   const fecha = String(p.fecha || "").trim();
@@ -1853,8 +1984,8 @@ function eliminarFeriadoRRHH(p) {
 }
 
 function toggleDelegacionRRHH(p) {
-  const auth = buscarEmpleadoPorUsuario(p.usuario);
-  if (!auth || auth.rolNorm !== "jefa_rrhh") {
+  const auth = autenticarSolicitud(p);
+  if (!auth || !auth.accesoRRHH || auth.rolNorm !== "jefa_rrhh") {
     return { success: false, message: "Solo la Jefa de RRHH puede gestionar estos accesos." };
   }
 
@@ -1870,10 +2001,7 @@ function toggleDelegacionRRHH(p) {
 }
 
 function toggleDelegacionJefe(p) {
-  const cred = p.clave || p.token || p.sessionToken;
-  const auth = cred
-    ? (p.usuario ? autenticarUsuario(p.usuario, cred) : buscarEmpleadoPorToken(cred))
-    : null;
+  const auth = autenticarSolicitud(p);
   if (!auth || auth.rolNorm !== "jefe") {
     return {
       success: false,
@@ -1909,7 +2037,7 @@ function toggleDelegacionJefe(p) {
 }
 
 function subirComprobantePermiso(p) {
-  const auth = buscarEmpleadoPorUsuario(p.usuario);
+  const auth = autenticarSolicitud(p);
   if (!auth) return { success: false, message: "Sesión no válida." };
 
   const idTramite = String(p.idTramite || "").trim();
@@ -1954,7 +2082,10 @@ function enviarCorreoSilencioso(destinatario, asunto, cuerpo) {
 function testPanelPermisos() {
   const { lista } = obtenerMapaEmpleados();
   const primerUsuario = lista.length > 0 ? lista[0].usuario : "cfigueroa";
-  const res = obtenerPanelPermisos(primerUsuario, "");
+  const emp = buscarEmpleadoPorUsuario(primerUsuario);
+  const res = emp
+    ? obtenerPanelPermisos(primerUsuario, emp.sessionToken)
+    : { success: false, message: "No hay usuarios cargados para probar el panel." };
   Logger.log("Usuario probado: " + primerUsuario);
   Logger.log(JSON.stringify(res, null, 2));
 }

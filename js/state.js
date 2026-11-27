@@ -5,6 +5,7 @@ export const state = {
   tokenSesion: "",
   claveSesionTemporal: "",
   preguntasActuales: [],
+  intentoExamen: "",
   capacitacionActual: null,
   configPermisosGlobal: [],
   feriadosGlobal: [],

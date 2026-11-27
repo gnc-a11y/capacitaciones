@@ -227,6 +227,7 @@ export function initAuthEvents() {
     state.usuarioActual = null;
     state.tokenSesion = "";
     state.claveSesionTemporal = "";
+    state.intentoExamen = "";
     document.getElementById('iframeVideoIntro').src = "";
     document.getElementById('formLogin').reset();
     const loginClave = document.getElementById('loginClave');
